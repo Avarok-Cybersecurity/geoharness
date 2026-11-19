@@ -14,7 +14,8 @@ export function makeInputs(over: Partial<Inputs>): Inputs {
     apiToken: 'test-token', accountId: ACCOUNT, workspace: '/w', sitePath: '/w/site', adapter: 'auto',
     buildCommand: undefined, outputDir: undefined, target: 'workers', projectName: 'geo-site',
     domains: ['geo.example.com'], lighthouse: false, lighthouseMaxUrls: undefined, geoMinScore: 80,
-    optimizations: new Set(OPTIMIZATION_IDS), deploy: true, rollbackOnFailure: true, buildId: SHA, stateDir: '/tmp/unused', ...over,
+    optimizations: new Set(OPTIMIZATION_IDS), deploy: true, rollbackOnFailure: true, buildId: SHA, stateDir: '/tmp/unused',
+    summaryFile: '/tmp/unused/summary.md', outputFile: '/tmp/unused/output.txt', ...over,
   };
 }
 

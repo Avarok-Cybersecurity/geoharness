@@ -28,6 +28,9 @@ export interface Inputs {
   rollbackOnFailure: boolean;
   buildId: string;
   stateDir: string;
+  /** GITHUB_STEP_SUMMARY and GITHUB_OUTPUT: where the summary and the action outputs are appended. */
+  summaryFile: string;
+  outputFile: string;
 }
 
 export class InputError extends Error {
@@ -116,6 +119,15 @@ export function readInputs(env: Env): Inputs {
   const stateDir = env.get('GEOHARNESS_STATE_DIR') ?? '';
   if (stateDir === '') problems.push('GEOHARNESS_STATE_DIR is not set (action.yml sets it to $RUNNER_TEMP/geoharness)');
 
+  // Read up front: a run without them used to build, deploy and verify, then die writing the summary.
+  const runnerFile = (name: string): string => {
+    const v = env.get(name) ?? '';
+    if (v === '') problems.push(`${name} is not set (GitHub Actions sets it; a local run must point it at a writable file)`);
+    return v;
+  };
+  const summaryFile = runnerFile('GITHUB_STEP_SUMMARY');
+  const outputFile = runnerFile('GITHUB_OUTPUT');
+
   if (problems.length > 0) throw new InputError(problems);
   return {
     apiToken, accountId, workspace, sitePath, adapter,
@@ -123,6 +135,6 @@ export function readInputs(env: Env): Inputs {
     target, projectName, domains, lighthouse, lighthouseMaxUrls,
     geoMinScore: geoMinScore ?? 0,
     optimizations: opt.ok ? opt.value : new Set(),
-    deploy, rollbackOnFailure, buildId, stateDir,
+    deploy, rollbackOnFailure, buildId, stateDir, summaryFile, outputFile,
   };
 }

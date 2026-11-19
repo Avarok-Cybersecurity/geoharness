@@ -45,8 +45,8 @@ export async function harness(o: { cfState?: Parameters<typeof startFakeCf>[0]; 
   }, (c) => {
     if (c.args.includes('dev')) w.localDir = join(site, 'public');
   }, () => { w.localDir = undefined; });
-  const io = testIO({ http: w.http, env: { GITHUB_STEP_SUMMARY: summary, GITHUB_OUTPUT: output }, proc });
-  const inputs = makeInputs({ sitePath: site, outputDir: 'public', stateDir, ...o.inputs });
+  const io = testIO({ http: w.http, env: {}, proc });
+  const inputs = makeInputs({ sitePath: site, outputDir: 'public', stateDir, summaryFile: summary, outputFile: output, ...o.inputs });
   const ctx = makeContext({ io, core: fakeCore(o.core ?? { score: 90, blockingFails: false }), inputs, cfBaseUrl: cf.baseUrl, state: {} });
   return { ctx, w, proc, summary, output, log: io.log.lines };
 }

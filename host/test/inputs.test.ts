@@ -9,6 +9,7 @@ const BASE: Record<string, string> = {
   INPUT_TARGET: 'workers', INPUT_PROJECT_NAME: 'geo-site', INPUT_DOMAINS: 'geo.example.com\nwww.example.com\n',
   INPUT_LIGHTHOUSE: 'true', INPUT_LIGHTHOUSE_MAX_URLS: '5', INPUT_GEO_MIN_SCORE: '80', INPUT_EXTRA_OPTIMIZATIONS: 'all -rocket_loader',
   INPUT_DEPLOY: 'true', INPUT_ROLLBACK_ON_FAILURE: 'true', INPUT_RAG: 'false', GITHUB_WORKSPACE: '/w', GITHUB_SHA: SHA, GEOHARNESS_STATE_DIR: '/tmp/gh',
+  GITHUB_STEP_SUMMARY: '/tmp/gh/summary.md', GITHUB_OUTPUT: '/tmp/gh/output.txt',
 };
 const read = (over: Record<string, string>) => readInputs({ get: (n) => ({ ...BASE, ...over })[n] });
 
@@ -44,6 +45,16 @@ describe('inputs', () => {
     expect(() => read({ INPUT_ROLLBACK_ON_FAILURE: '' })).toThrow(/rollback-on-failure is required/);
     expect(() => read({ INPUT_ROLLBACK_ON_FAILURE: 'yes' })).toThrow(/rollback-on-failure must be "true" or "false"/);
     expect(read({ INPUT_DEPLOY: 'false', INPUT_ROLLBACK_ON_FAILURE: '' }).rollbackOnFailure).toBe(false);
+  });
+
+  it('needs the step summary and output files up front, so a local run fails in preflight rather than at the end', () => {
+    const err = (() => { try { read({ GITHUB_STEP_SUMMARY: '', GITHUB_OUTPUT: '' }); } catch (e) { return e; } })();
+    expect(err).toBeInstanceOf(InputError);
+    expect((err as InputError).problems).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^GITHUB_STEP_SUMMARY is not set/), expect.stringMatching(/^GITHUB_OUTPUT is not set/),
+    ]));
+    const i = read({});
+    expect([i.summaryFile, i.outputFile]).toEqual(['/tmp/gh/summary.md', '/tmp/gh/output.txt']);
   });
 
   it('rejects unimplemented rag instead of ignoring it', () => {
