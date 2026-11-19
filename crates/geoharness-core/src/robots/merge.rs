@@ -5,9 +5,11 @@
 //! is an error otherwise: `GeoHarness` never silently overrides an author.
 //! `Content-Signal` is written into every generated group because a crawler
 //! obeys only the most specific group naming it (RFC 9309), so a signal in
-//! `*` alone would not reach a bot with its own group.
+//! `*` alone would not reach a bot with its own group; for the same reason
+//! the site's own groups get it too (`sign`).
 
 use super::parse::{Group, Rule, RuleKind, parse, strip_block};
+use super::sign::sign_site_groups;
 use crate::config::{ContentSignal, SiteConfig};
 use crate::error::Error;
 
@@ -48,6 +50,7 @@ fn configured_groups(config: &SiteConfig) -> Vec<Group> {
                 }))
                 .collect(),
             content_signal: signal.clone(),
+            agents_end: None,
         })
         .collect();
     if !groups.iter().any(|g| g.names("*")) {
@@ -55,6 +58,7 @@ fn configured_groups(config: &SiteConfig) -> Vec<Group> {
             agents: vec!["*".into()],
             rules: Vec::new(),
             content_signal: signal,
+            agents_end: None,
         });
     }
     groups
@@ -68,6 +72,13 @@ pub fn merge(existing: Option<&str>, config: &SiteConfig) -> Result<String, Erro
         .bots
         .iter()
         .any(|b| b.tokens.iter().any(|t| t == "*"));
+    let signal = content_signal_value(config.content_signal);
+    let site = sign_site_groups(&site, &parsed.groups, &signal).map_err(|agents| {
+        Error::RobotsConflict(format!(
+            "the site's robots.txt states a Content-Signal other than \"{signal}\" for: {}",
+            agents.join(", ")
+        ))
+    })?;
     let mut conflicts = Vec::new();
     let mut emit = Vec::new();
     for mut group in configured_groups(config) {

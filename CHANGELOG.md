@@ -16,6 +16,9 @@ All notable changes to GeoHarness are documented here. The format follows
 
 ### Fixed
 
+- robots.txt: the site's own groups now carry the configured `Content-Signal` too. A configured group the
+  site's file already had (its `User-agent: *` included) was absorbed without the line, so the crawlers that
+  read that group never saw the signal. A site group stating a different signal is a `robots.conflict`.
 - Security: child processes no longer inherit the action inputs (`INPUT_*`), so the Cloudflare API token no longer
   reaches the site's build command or the install scripts of its dependencies; wrangler still gets it, passed
   explicitly. Found migrating thomaspbraun.com, GeoHarness's first external consumer.
