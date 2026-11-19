@@ -18,7 +18,7 @@ cargo test --workspace
 cargo run -p xtask -- gen-types --check    # host/src/core/types.ts
 cargo run -p xtask -- gen-checks --check   # docs/generated/checks.json
 npm run typecheck && npm run lint && npm test
-scripts/build-wasm.sh && npm run bundle    # dist/ must not change
+scripts/build-wasm.sh && npm run bundle    # dist/ must not change (dist/core: Linux x86_64 bytes, see below)
 npm run check:docs                         # generated README and site sections
 ```
 
@@ -28,6 +28,9 @@ npm run check:docs                         # generated README and site sections
   `host/src/core/types.ts` (Rust types → `gen-types`), `docs/generated/checks.json` (audit catalog →
   `gen-checks`), README/site sections between `<!-- generated:… -->` markers (`npm run docs`), `dist/`
   (`scripts/build-wasm.sh`, `npm run bundle`), `site/src/og.png` (`npm run og`).
+- **`dist/core/` holds the Linux x86_64 build.** A macOS build behaves the same but differs in bytes. After
+  changing `crates/`, push, then commit `dist/core/` from the failing `dist` job's `dist` artifact
+  (`gh run download <run> -n dist -D dist`), or build on Linux.
 - **Every claim needs a citation.** Add sources to [CITATIONS.md](CITATIONS.md) with an evidence grade; audit
   findings may only cite ids that exist there (a test checks).
 - **No implicit defaults.** A config default needs a documented reason in `docs/config.md`.

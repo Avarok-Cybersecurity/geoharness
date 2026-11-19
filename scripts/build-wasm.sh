@@ -34,7 +34,9 @@ fi
 
 # dist/core is committed and CI rebuilds it byte for byte, so no machine-specific path may
 # reach the binary (panic locations embed source paths): remap every root to a fixed name.
-# The toolchain is pinned by rust-toolchain.toml for the same reason.
+# The toolchain is pinned by rust-toolchain.toml for the same reason. The committed bytes are the
+# Linux x86_64 build CI makes: a macOS host lays out data segments differently (same behaviour, different
+# bytes), so after changing crates/ commit dist/core from the dist job's artifact or a Linux build.
 cargo_home="${CARGO_HOME:-$HOME/.cargo}"
 sysroot="$(rustc --print sysroot)"
 export RUSTFLAGS="--remap-path-prefix=$cargo_home=/cargo --remap-path-prefix=$sysroot=/rustc --remap-path-prefix=$repo=/geoharness"
