@@ -108,6 +108,14 @@ describe('post-deploy Lighthouse gate and rollback', () => {
     expect(wranglerCalls(h).some((c) => c.args.includes('rollback'))).toBe(false);
   });
 
+  it('a Pages → Workers migration\'s first run does not "roll back" to the Worker\'s earlier failed upload', async () => {
+    const cfState = { zones: [CF_WITH_VERSION.zones[0]], workerDomains: [], workerDeployments: CF_WITH_VERSION.workerDeployments };
+    const h = await harness({ cfState, inputs: { lighthouse: true, lighthouseMaxUrls: 1 }, onProc: liveFails });
+    await expect(runAll(h.ctx)).rejects.toThrow(/NOT rolled back: no prior production version on Worker geo-site/);
+    expect(wranglerCalls(h).some((c) => c.args.includes('rollback'))).toBe(false);
+    expect(await readFile(h.summary, 'utf8')).toContain('is not something GeoHarness can roll back to');
+  });
+
   it('rollback-on-failure: false leaves the build live and says so', async () => {
     const h = await harness({ cfState: CF_WITH_VERSION, inputs: { lighthouse: true, lighthouseMaxUrls: 1, rollbackOnFailure: false }, onProc: liveFails });
     await expect(runAll(h.ctx)).rejects.toThrow(/rollback-on-failure is false: the failing build stays live/);

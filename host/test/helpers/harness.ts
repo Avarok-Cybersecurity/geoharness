@@ -26,6 +26,25 @@ export function currentCf(): FakeCf {
 }
 afterEach(async () => { await cf?.close(); cf = undefined; });
 
+/**
+ * What `wrangler deploy` does to the account, so later reads see it: a new deployment of a new version becomes
+ * the Worker's newest, and every domain in the config becomes a Custom Domain of the Worker.
+ */
+function simulateWorkersDeploy(fake: FakeCf, inputs: Inputs): void {
+  const name = inputs.projectName;
+  const previous = fake.state.workerDeployments[name] ?? [];
+  const n = previous.length + 1;
+  fake.state.workerDeployments[name] = [
+    { id: `d-run-${n}`, created_on: `2026-11-19T00:00:${String(n).padStart(2, '0')}Z`, versions: [{ version_id: `v-run-${n}`, percentage: 100 }] },
+    ...previous,
+  ];
+  for (const hostname of inputs.domains) {
+    if (!fake.state.workerDomains.some((d) => d.hostname === hostname && d.service === name)) {
+      fake.state.workerDomains = [...fake.state.workerDomains.filter((d) => d.hostname !== hostname), { hostname, service: name, zone_id: ZONE.id }];
+    }
+  }
+}
+
 export interface Harness { ctx: StageContext; w: SiteWorld; proc: RecordingProc; summary: string; output: string; log: string[] }
 
 export async function harness(o: { cfState?: Parameters<typeof startFakeCf>[0]; inputs?: Partial<Inputs>; core?: FakeCoreOptions; onProc?: (c: ProcCall) => Promise<ProcResult | undefined> }): Promise<Harness> {
@@ -39,14 +58,18 @@ export async function harness(o: { cfState?: Parameters<typeof startFakeCf>[0]; 
   await writeFile(output, '');
   cf = await startFakeCf(o.cfState ?? { zones: [ZONE], workerDomains: [{ hostname: HOST, service: 'geo-site', zone_id: 'zone1' }] });
   const w = world(cf, HOST);
+  const inputs = makeInputs({ sitePath: site, outputDir: 'public', stateDir, summaryFile: summary, outputFile: output, ...o.inputs });
+  const fake = cf;
   const proc = recordingProc(async (c) => {
-    if (c.args.includes('deploy')) w.outputDir = join(site, 'public');
+    if (c.args.includes('deploy')) {
+      w.outputDir = join(site, 'public');
+      if (inputs.target === 'workers' && !c.args.includes('--dry-run')) simulateWorkersDeploy(fake, inputs);
+    }
     return o.onProc === undefined ? undefined : o.onProc(c);
   }, (c) => {
     if (c.args.includes('dev')) w.localDir = join(site, 'public');
   }, () => { w.localDir = undefined; });
   const io = testIO({ http: w.http, env: {}, proc });
-  const inputs = makeInputs({ sitePath: site, outputDir: 'public', stateDir, summaryFile: summary, outputFile: output, ...o.inputs });
   const ctx = makeContext({ io, core: fakeCore(o.core ?? { score: 90, blockingFails: false }), inputs, cfBaseUrl: cf.baseUrl, state: {} });
   return { ctx, w, proc, summary, output, log: io.log.lines };
 }

@@ -15,7 +15,9 @@ export interface LighthouseState { skipped: boolean; urls: string[]; links: Reco
 export type PreviousDeployment =
   | { target: 'workers'; workerName: string; versionId: string | undefined }
   | { target: 'pages'; deploymentId: string | undefined }
-  | { target: 'unknown'; reason: string };
+  | { target: 'unknown'; reason: string }
+  /** Production was not on this Worker before the run (a migration's first run): nothing of ours to go back to. */
+  | { target: 'none'; reason: string };
 
 /** Everything a stage produces for later stages; persisted as JSON between `geoharness <stage>` calls. */
 export interface RunState {

@@ -55,3 +55,46 @@ describe('Pages rollback', () => {
     expect((await rollBack(ctx, 'x')).detail).toBe('cannot roll back: the repo-owned wrangler config states no Worker name');
   });
 });
+
+describe('Worker rollback only to a version that served production', () => {
+  const deployments = (...ids: string[]) => ids.map((id, i) => ({ id: `d${i}`, created_on: `2026-11-1${i}T00:00:00Z`, versions: [{ version_id: id, percentage: 100 }] }));
+
+  async function workersContext(state: Parameters<typeof startFakeCf>[0]) {
+    cf = await startFakeCf(state);
+    const proc = recordingProc();
+    const io = testIO({ http: { request: (r) => (r.url.startsWith(cf?.baseUrl ?? '-') ? nodeHttp.request(r) : noHttp.request(r)) }, env: {}, proc });
+    const ctx = makeContext({ io, core: fakeCore({ score: 90, blockingFails: false }), inputs: makeInputs({ domains: ['geo.example.com', 'www.example.com'] }), cfBaseUrl: cf.baseUrl, state: {} });
+    return { ctx, proc };
+  }
+
+  it('a migration\'s first run records no previous version: the hosts were not on this Worker, so its old upload never served them', async () => {
+    // The earlier run uploaded v-failed and then failed binding the domains (they were still on Pages).
+    const { ctx, proc } = await workersContext({ workerDeployments: { 'geo-site': deployments('v-failed') }, workerDomains: [] });
+    ctx.state.previousDeployment = await recordPrevious(ctx, 'geo-site');
+    expect(ctx.state.previousDeployment).toMatchObject({ target: 'none' });
+    const r = await rollBack(ctx, 'x');
+    expect(r.performed).toBe(false);
+    expect(r.detail).toMatch(/^no prior production version on Worker geo-site: none of geo\.example\.com, www\.example\.com was a Custom Domain of it before this run\./);
+    expect(r.detail).toContain('whatever served them before (a Pages project, another origin) is not something GeoHarness can roll back to');
+    expect(proc.calls).toEqual([]);
+  });
+
+  it('records the version when one of the hosts was already a Custom Domain of the Worker', async () => {
+    const { ctx } = await workersContext({ workerDeployments: { 'geo-site': deployments('v-prev') }, workerDomains: [{ hostname: 'www.example.com', service: 'geo-site', zone_id: 'zone1' }] });
+    expect(await recordPrevious(ctx, 'geo-site')).toEqual({ target: 'workers', workerName: 'geo-site', versionId: 'v-prev' });
+  });
+
+  it('a host bound to another Worker does not count', async () => {
+    const { ctx } = await workersContext({ workerDeployments: { 'geo-site': deployments('v-prev') }, workerDomains: [{ hostname: 'geo.example.com', service: 'other', zone_id: 'zone1' }] });
+    expect(await recordPrevious(ctx, 'geo-site')).toMatchObject({ target: 'none' });
+  });
+
+  it('refuses to "roll back" to the version that is serving now', async () => {
+    const { ctx, proc } = await workersContext({ workerDeployments: { 'geo-site': deployments('v-same') }, workerDomains: [{ hostname: 'geo.example.com', service: 'geo-site', zone_id: 'zone1' }] });
+    ctx.state.previousDeployment = await recordPrevious(ctx, 'geo-site');
+    const r = await rollBack(ctx, 'x');
+    expect(r).toEqual({ performed: false, detail: 'Worker geo-site still serves version v-same, the one recorded before this deploy: there is nothing earlier to roll back to' });
+    expect(proc.calls).toEqual([]);
+  });
+});
+

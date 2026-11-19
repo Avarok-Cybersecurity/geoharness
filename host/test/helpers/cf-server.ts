@@ -102,7 +102,8 @@ function route(s: CfState, method: string, path: string, query: URLSearchParams,
 }
 
 export async function startFakeCf(state: Partial<CfState>): Promise<FakeCf> {
-  const s: CfState = { zones: [], rulesets: {}, settings: {}, tiered: {}, bot: {}, workerDomains: [], workerDeployments: {}, pagesProduction: {}, denied: [], ...state };
+  const s: CfState = { zones: [], rulesets: {}, settings: {}, tiered: {}, bot: {}, workerDomains: [], workerDeployments: {}, pagesProduction: {}, denied: [], ...structuredClone(state) };
+  // Cloned: the fake mutates its state, and tests share fixtures such as CF_WITH_VERSION.
   const requests: RecordedRequest[] = [];
   const server: Server = createServer((req, res) => {
     void (async () => {
