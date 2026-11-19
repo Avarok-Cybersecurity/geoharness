@@ -1,0 +1,46 @@
+[workspace]
+resolver = "3"
+members = ["crates/geoharness-core", "crates/geoharness-audit", "crates/geoharness-wasm", "xtask"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+repository = "https://github.com/Avarok-Cybersecurity/geoharness"
+version = "0.1.0"
+
+[workspace.dependencies]
+geoharness-core = { path = "crates/geoharness-core" }
+geoharness-audit = { path = "crates/geoharness-audit" }
+htmd = "0.6"
+lol_html = "3.0"
+scraper = { version = "0.29", default-features = false }
+toml = "1.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_path_to_error = "0.1"
+thiserror = "2.0"
+ts-rs = "12.0"
+wasm-bindgen = "=0.2.129"
+serde-wasm-bindgen = "0.6"
+sha2 = "0.11"
+proptest = "1.12"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+# String building with push_str(&format!(..)) reads better than write!(..) plus an ignored fmt::Result.
+format_push_string = "allow"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

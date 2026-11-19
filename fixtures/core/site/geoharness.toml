@@ -1,0 +1,56 @@
+env = ["PUBLIC_NAME"]
+
+[site]
+origin = "https://example.com"
+name = "Example Docs"
+language = "en-US"
+
+[identity]
+kind = "organization"
+name = "Example Inc"
+url = "https://example.com/"
+sameAs = ["https://github.com/example"]
+
+[contentSignal]
+search = true
+aiInput = true
+aiTrain = false
+
+[[bots]]
+group = "search"
+tokens = ["OAI-SearchBot", "Claude-SearchBot", "PerplexityBot"]
+allow = ["/"]
+
+[[bots]]
+group = "user"
+tokens = ["ChatGPT-User", "Claude-User", "Perplexity-User"]
+allow = ["/"]
+
+[[bots]]
+group = "training"
+tokens = ["GPTBot", "ClaudeBot"]
+disallow = ["/"]
+
+[[bots]]
+group = "other"
+tokens = ["*"]
+allow = ["/"]
+disallow = ["/private/"]
+
+[content]
+mainSelector = "main"
+exclude = ["/drafts/**"]
+
+[llms]
+summary = "Example Docs explains how to install and use Example."
+
+[[llms.sections]]
+title = "Docs"
+routes = ["/guide/**"]
+
+[[llms.sections]]
+title = "Company"
+routes = ["/", "/pricing/"]
+
+[headers]
+immutable = ["/assets/*"]
