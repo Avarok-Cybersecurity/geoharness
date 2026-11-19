@@ -38,8 +38,9 @@ function htmlFiles(dir) {
 }
 
 function headersFile(styleHash) {
+  // connect-src 'self': Lighthouse fetches /robots.txt (and llms.txt) from the page itself; 'none' fails its SEO audit.
   const csp = [
-    "default-src 'none'", `style-src ${styleHash}`, "img-src 'self'", "base-uri 'none'", "form-action 'none'",
+    "default-src 'none'", `style-src ${styleHash}`, "img-src 'self'", "connect-src 'self'", "base-uri 'none'", "form-action 'none'",
     "frame-ancestors 'none'", "require-trusted-types-for 'script'", 'upgrade-insecure-requests',
   ].join('; ');
   return [

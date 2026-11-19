@@ -3,7 +3,10 @@ import type { HostIO } from '../io/types.js';
 import { buildMetaContent } from '../lib/gate.js';
 
 export const LIVE_TIMEOUT_MS = 20_000;
-/** How much of each body the core sees; enough for frontmatter, head metadata and the first window of text. */
+/**
+ * How much of each body's start and end the core sees: enough for frontmatter, head metadata and the first
+ * window of text, and for scripts the edge injects before </body>.
+ */
 export const BODY_PREFIX_CHARS = 8192;
 
 /** Fetches one planned request without following redirects, so the observed status is the real one. */
@@ -14,7 +17,8 @@ export async function observe(io: HostIO, req: LiveRequest): Promise<LiveObserva
   });
   const headers: Record<string, string> = {};
   for (const [k, v] of Object.entries(res.headers)) headers[k.toLowerCase()] = v;
-  return { url: req.url, userAgent: req.userAgent, accept: req.accept, status: res.status, headers, bodyPrefix: res.body.slice(0, BODY_PREFIX_CHARS) };
+  return { url: req.url, userAgent: req.userAgent, accept: req.accept, status: res.status, headers,
+    bodyPrefix: res.body.slice(0, BODY_PREFIX_CHARS), bodySuffix: res.body.slice(-BODY_PREFIX_CHARS) };
 }
 
 export interface PollOptions { url: string; buildId: string; intervalMs: number; timeoutMs: number }

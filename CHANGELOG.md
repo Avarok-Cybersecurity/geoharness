@@ -3,6 +3,25 @@
 All notable changes to GeoHarness are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The pre-deploy Lighthouse gate audits the output served by `wrangler dev --local` (or `wrangler pages dev`)
+  with the deploy's own config, so `_headers`, `html_handling` and 404 handling apply; lhci's static server
+  ignored them and passed a CSP that scored SEO 92 in production.
+- `_headers`: a GeoHarness rule whose URL pattern the site already uses is merged into that site rule, so
+  `wrangler dev` (last rule per pattern wins) serves the same headers as production.
+- Generated Worker `compatibility_date` is 2026-10-30, the newest the pinned wrangler's runtime supports.
+
+### Added
+
+- Post-deploy Lighthouse gate on the live URLs; on a failed live audit or gate, `rollback-on-failure: true`
+  (required when deploying, no default) rolls production back to the version it served before.
+- `[analytics] cloudflareWebAnalytics`: extends the site's CSP for the injected Web Analytics beacon; without
+  it the live audit fails when the beacon is injected (`index.live_beacon`).
+- Blocking static check `index.csp_robots`: the site's CSP must let the page fetch `/robots.txt`.
+
 ## [1.0.0] - Unreleased
 
 ### Added

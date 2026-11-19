@@ -66,6 +66,8 @@
 <tr><td><code>index.canonical</code></td><td>Page has a canonical link</td><td>indexability</td><td>blocking</td><td>A</td><td><code>google-ai-guide-2026</code></td></tr>
 <tr><td><code>index.broken_links</code></td><td>Internal links resolve</td><td>indexability</td><td>blocking</td><td>A</td><td><code>google-ai-guide-2026</code></td></tr>
 <tr><td><code>index.live_build</code></td><td>Live site serves this build</td><td>indexability</td><td>blocking</td><td>A</td><td><code>cf-workers-static-assets</code></td></tr>
+<tr><td><code>index.csp_robots</code></td><td>CSP lets the page fetch /robots.txt (Lighthouse SEO)</td><td>indexability</td><td>blocking</td><td>A, A (spec)</td><td><code>lighthouse-robots-txt</code>, <code>w3c-csp3</code></td></tr>
+<tr><td><code>index.live_beacon</code></td><td>No Cloudflare Web Analytics beacon the CSP was not extended for</td><td>indexability</td><td>blocking</td><td>A</td><td><code>cf-web-analytics</code>, <code>lighthouse-errors-in-console</code></td></tr>
 <tr><td><code>delivery.twin</code></td><td>Markdown twin exists and matches the page</td><td>delivery</td><td>blocking</td><td>A, A (spec)</td><td><code>google-spam-policies</code>, <code>llmstxt-spec</code>, <code>htmlrag-2025</code></td></tr>
 <tr><td><code>delivery.live_negotiation</code></td><td>Accept: text/markdown gets markdown with Vary: Accept</td><td>delivery</td><td>blocking</td><td>A, C</td><td><code>cf-markdown-for-agents</code>, <code>cf-transform-rules</code>, <code>checkly-2026</code></td></tr>
 <tr><td><code>delivery.live_files</code></td><td>HTML pages, robots.txt, llms.txt and sitemap.xml are served correctly</td><td>delivery</td><td>blocking</td><td>A (spec)</td><td><code>cf-content-signals</code>, <code>llmstxt-spec</code></td></tr>

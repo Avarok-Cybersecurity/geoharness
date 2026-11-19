@@ -135,6 +135,9 @@ pub struct LiveObservation {
     pub status: u16,
     pub headers: BTreeMap<String, String>,
     pub body_prefix: String,
+    /// The end of the body (same length bound as the prefix): edge-injected
+    /// scripts such as the Web Analytics beacon sit before `</body>`.
+    pub body_suffix: String,
 }
 
 /// Contract §4 input: exactly one of `config` and `origin` (the latter for

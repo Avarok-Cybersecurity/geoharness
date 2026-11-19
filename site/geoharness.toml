@@ -41,6 +41,10 @@ allow = ["/"]
 [content]
 mainSelector = "main"
 
+# Cloudflare injects the Web Analytics beacon on avarok.net; admit it in the CSP instead of failing on it.
+[analytics]
+cloudflareWebAnalytics = true
+
 [llms]
 summary = "GeoHarness is a GitHub Action that builds any website, serves markdown twins to AI agents for free on Cloudflare, gates on a GEO score and Lighthouse 100, deploys and verifies the live site."
 

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { nodeFs } from '../../src/io/node/fs.js';
 import { nodeGit } from '../../src/io/node/git.js';
+import { nodeNet } from '../../src/io/node/net.js';
 import { nodeProc } from '../../src/io/node/proc.js';
 import type { Http, HttpRequest, HttpResponse, HostIO, Log, Proc } from '../../src/io/types.js';
 
@@ -32,6 +33,7 @@ export function testIO(opts: { http: Http; env: Record<string, string>; proc?: P
     git: nodeGit(realProc),
     http: opts.http,
     proc: opts.proc ?? realProc,
+    net: nodeNet,
     log,
     env: { get: (n) => opts.env[n] },
     clock: { nowMs: () => now, sleep: (ms) => { slept.push(ms); now += ms; return Promise.resolve(); } },

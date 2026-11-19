@@ -1,44 +1,9 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import type { Inputs } from '../src/inputs.js';
+import { describe, expect, it } from 'vitest';
 import { runAll } from '../src/stages/index.js';
-import type { StageContext } from '../src/stages/context.js';
-import { startFakeCf, type FakeCf } from './helpers/cf-server.js';
-import { makeContext, makeInputs, SHA } from './helpers/context.js';
-import { FAKE_INDEXNOW_KEY, fakeCore, type FakeCoreOptions } from './helpers/fake-core.js';
-import { copyFixture, testIO } from './helpers/io.js';
-import { gitCommitAll, recordingProc, tempDir, world, type ProcCall, type SiteWorld } from './helpers/world.js';
-
-const HOST = 'geo.example.com';
-const ZONE = { id: 'zone1', name: 'example.com' };
-let cf: FakeCf | undefined;
-afterEach(async () => { await cf?.close(); cf = undefined; });
-
-interface Harness { ctx: StageContext; w: SiteWorld; proc: ReturnType<typeof recordingProc>; summary: string; output: string; log: string[] }
-
-async function harness(o: { cfState?: Parameters<typeof startFakeCf>[0]; inputs?: Partial<Inputs>; core?: FakeCoreOptions; onProc?: (c: ProcCall) => Promise<void> }): Promise<Harness> {
-  const site = await copyFixture('static');
-  await writeFile(join(site, 'geoharness.toml'), `[site]\norigin = "https://${HOST}"\n`);
-  gitCommitAll(site);
-  const stateDir = await tempDir('gh-state-');
-  const summary = join(stateDir, 'summary.md');
-  const output = join(stateDir, 'output.txt');
-  await writeFile(summary, '');
-  await writeFile(output, '');
-  cf = await startFakeCf(o.cfState ?? { zones: [ZONE], workerDomains: [{ hostname: HOST, service: 'geo-site', zone_id: 'zone1' }] });
-  const w = world(cf, HOST);
-  const proc = recordingProc(async (c) => {
-    if (c.args.includes('deploy')) w.outputDir = join(site, 'public');
-    if (o.onProc !== undefined) await o.onProc(c);
-  });
-  const io = testIO({ http: w.http, env: { GITHUB_STEP_SUMMARY: summary, GITHUB_OUTPUT: output }, proc });
-  const inputs = makeInputs({ sitePath: site, outputDir: 'public', stateDir, ...o.inputs });
-  const ctx = makeContext({ io, core: fakeCore(o.core ?? { score: 90, blockingFails: false }), inputs, cfBaseUrl: cf.baseUrl, state: {} });
-  return { ctx, w, proc, summary, output, log: io.log.lines };
-}
-
-const wranglerCalls = (h: Harness): ProcCall[] => h.proc.calls.filter((c) => c.args.includes('--package=wrangler@4.156.0'));
+import { FAKE_INDEXNOW_KEY } from './helpers/fake-core.js';
+import { currentCf, harness, HOST, ZONE, wranglerCalls } from './helpers/harness.js';
 
 describe('geoharness run', () => {
   it('runs every stage in order and reports', async () => {
@@ -55,7 +20,7 @@ describe('geoharness run', () => {
     expect(config).not.toHaveProperty('main');
 
     expect(await readFile(join(h.ctx.inputs.sitePath, 'public', 'about', 'index.md'), 'utf8')).toContain('title: /about/');
-    expect(cf?.state.rulesets['zone1:http_request_transform']).toHaveLength(3);
+    expect(currentCf().state.rulesets['zone1:http_request_transform']).toHaveLength(3);
     expect(h.w.indexnow).toHaveLength(1);
     const submission = JSON.parse(h.w.indexnow[0]?.body ?? '{}') as { key: string; keyLocation: string; urlList: string[] };
     expect(submission.key).toBe(FAKE_INDEXNOW_KEY);
@@ -88,13 +53,13 @@ describe('geoharness run', () => {
     expect(config.assets).toMatchObject({ binding: 'ASSETS', run_worker_first: true });
     expect(await readFile(config.main, 'utf8')).toContain('import { negotiate, varyAccept } from "/action/edge/negotiate.mjs"');
     expect(h.log.some((l) => l.startsWith('WARN') && l.includes('100,000 requests/day') && l.includes('429'))).toBe(true);
-    expect(cf?.requests.some((r) => r.path.includes('rulesets'))).toBe(false);
+    expect(currentCf().requests.some((r) => r.path.includes('rulesets'))).toBe(false);
   });
 
   it('deploy: false builds, processes and audits, then makes no Cloudflare call and runs no wrangler', async () => {
     const h = await harness({ inputs: { deploy: false, apiToken: '', accountId: '' } });
     await runAll(h.ctx);
-    expect(cf?.requests).toEqual([]);
+    expect(currentCf().requests).toEqual([]);
     expect(wranglerCalls(h)).toEqual([]);
     expect(h.w.indexnow).toEqual([]);
     expect(await readFile(join(h.ctx.inputs.sitePath, 'public', 'about', 'index.md'), 'utf8')).toContain('title: /about/');
@@ -118,7 +83,7 @@ describe('geoharness run', () => {
       inputs: { optimizations: new Set(['early_hints', 'http3'] as const) },
     });
     await runAll(h.ctx);
-    expect(cf?.requests.some((r) => r.path.includes('bot_management'))).toBe(false);
+    expect(currentCf().requests.some((r) => r.path.includes('bot_management'))).toBe(false);
   });
 
   it('verify waits for the deployed build with a bounded poll', async () => {
@@ -138,29 +103,5 @@ describe('geoharness run', () => {
     const h = await harness({});
     h.w.liveStatusFor = (ua) => (ua === 'GPTBot' ? 403 : 200);
     await expect(runAll(h.ctx)).rejects.toThrow(/live verification failed/);
-  });
-
-  it('runs the Lighthouse gate on sitemap URLs, 3 runs, median, minScore 1, capped', async () => {
-    const h = await harness({
-      inputs: { lighthouse: true, lighthouseMaxUrls: 1 },
-      onProc: async (c) => {
-        if (c.args.includes('upload')) {
-          await mkdir(join(c.options.cwd, '.lighthouseci'), { recursive: true });
-          await writeFile(join(c.options.cwd, '.lighthouseci', 'links.json'), JSON.stringify({ 'http://localhost:9/about/': 'https://storage.example/r1' }));
-        }
-      },
-    });
-    await runAll(h.ctx);
-    const lhci = h.proc.calls.filter((c) => c.args.includes('--package=@lhci/cli@0.16.1'));
-    expect(lhci.map((c) => c.args[4])).toEqual(['collect', 'upload', 'assert']);
-    expect(lhci[1]?.options.env).toEqual({ LHCI_BUILD_CONTEXT__CURRENT_HASH: SHA });
-    const rcPath = String(lhci[0]?.args[5]).replace('--config=', '');
-    const rc = JSON.parse(await readFile(rcPath, 'utf8')) as { ci: { collect: { url: string[]; numberOfRuns: number }; assert: { assertions: Record<string, unknown> } } };
-    expect(rc.ci.collect.numberOfRuns).toBe(3);
-    expect(rc.ci.collect.url).toEqual(['http://localhost/about/']);
-    expect(Object.keys(rc.ci.assert.assertions).sort()).toEqual(['categories:accessibility', 'categories:best-practices', 'categories:performance', 'categories:seo']);
-    expect(rc.ci.assert.assertions['categories:seo']).toEqual(['error', { minScore: 1, aggregationMethod: 'median-run' }]);
-    expect(await readFile(h.summary, 'utf8')).toContain('[report](https://storage.example/r1)');
-    expect(SHA).toHaveLength(40);
   });
 });

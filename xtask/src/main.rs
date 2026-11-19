@@ -38,6 +38,7 @@ fn decls(cfg: &Config) -> Vec<String> {
         config::LlmsSection::decl(cfg),
         config::Headers::decl(cfg),
         config::Prerender::decl(cfg),
+        config::Analytics::decl(cfg),
         types::SiteInput::decl(cfg),
         types::Existing::decl(cfg),
         types::PageInput::decl(cfg),

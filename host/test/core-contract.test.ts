@@ -30,7 +30,7 @@ function healthy(plan: LiveRequest[]): LiveObservation[] {
     return {
       url: r.url, userAgent: r.userAgent, accept: r.accept, status: r.expect.status,
       headers: { 'content-type': ct === 'xml' ? 'application/xml' : `${ct}; charset=utf-8`, vary: 'Accept-Encoding, Accept' },
-      bodyPrefix: r.expect.bodyIncludes ?? '',
+      bodyPrefix: r.expect.bodyIncludes ?? '', bodySuffix: '</body></html>',
     };
   });
 }
@@ -73,6 +73,16 @@ describe('real wasm core through the typed adapter', () => {
     const base = unwrap('audit', core.audit(staticAuditInput()));
     const live = unwrap('audit', core.audit({ ...staticAuditInput(), live: healthy(plan) }));
     expect(live.score).toBeGreaterThanOrEqual(base.score);
+  });
+
+  it('audit: a beacon at the end of the live HTML fails without the analytics opt-in and passes with it', () => {
+    const routes = out.pages.map((p) => p.route);
+    const plan = unwrap('liveCheckPlan', core.liveCheckPlan({ config: input.config, routes, buildId: FIXTURE_BUILD_ID }));
+    const live = healthy(plan).map((o) => ({ ...o, bodySuffix: '<script src="https://static.cloudflareinsights.com/beacon.min.js/v1"></script></body>' }));
+    const beacon = (config: typeof input.config): boolean | undefined =>
+      unwrap('audit', core.audit({ ...staticAuditInput(), config, live })).findings.find((f) => f.checkId === 'index.live_beacon')?.passed;
+    expect(beacon(input.config)).toBe(false);
+    expect(beacon({ ...input.config, analytics: { cloudflareWebAnalytics: true } })).toBe(true);
   });
 
   it('liveCheckPlan rejects both config and origin', () => {

@@ -1,58 +1,34 @@
 import { join } from 'node:path';
-import { asObject, asString, parseJson } from '../lib/json.js';
-import { parseSitemap } from '../lib/sitemap.js';
+import { lighthouseUrls } from '../lib/lighthouse-rc.js';
 import { need, type StageContext } from './context.js';
-import { runTool, runToolOk } from './tools.js';
+import { withLocalServer } from './local-server.js';
+import { describeFailures, runLighthouse } from './lighthouse-run.js';
 
-const RUNS = 3;
-const CATEGORIES = ['performance', 'accessibility', 'best-practices', 'seo'] as const;
-const LHCI_TIMEOUT_MS = 45 * 60 * 1000;
-
-/** lhci serves staticDistDir itself and swaps in its own port for http://localhost URLs. */
-export function lighthouseUrls(sitemapXml: string, max: number): string[] {
-  return parseSitemap(sitemapXml).slice(0, max).map((e) => {
-    const u = new URL(e.loc);
-    return `http://localhost${u.pathname}`;
-  });
-}
-
-export function lighthouseRc(outputDir: string, urls: string[]): unknown {
-  const assertion = ['error', { minScore: 1, aggregationMethod: 'median-run' }];
-  return {
-    ci: {
-      collect: { staticDistDir: outputDir, url: urls, numberOfRuns: RUNS },
-      assert: { assertions: Object.fromEntries(CATEGORIES.map((c) => [`categories:${c}`, assertion])) },
-      upload: { target: 'temporary-public-storage' },
-    },
-  };
-}
-
-export async function lighthouseStage(ctx: StageContext): Promise<void> {
-  if (!ctx.inputs.lighthouse) {
-    ctx.io.log.info('lighthouse: false — Lighthouse gate skipped');
-    ctx.state.lighthouse = { skipped: true, urls: [], links: {} };
-    return;
-  }
+/** The sitemap's first `lighthouse-max-urls` URLs, on `origin`. */
+export async function auditedUrls(ctx: StageContext, origin: string): Promise<string[]> {
   const { outputDir } = need(ctx.state, 'build', 'lighthouse');
   const sitemap = await ctx.io.fs.readText(join(outputDir, 'sitemap.xml'));
   const max = ctx.inputs.lighthouseMaxUrls;
   if (max === undefined) throw new Error('lighthouse-max-urls is required when lighthouse is true');
-  const urls = lighthouseUrls(sitemap, max);
+  const urls = lighthouseUrls(sitemap, origin, max);
   if (urls.length === 0) throw new Error('the generated sitemap.xml lists no URLs to audit');
+  return urls;
+}
 
-  const dir = await ctx.io.fs.makeTempDir(ctx.inputs.stateDir, 'lhci-');
-  const rc = join(dir, 'lighthouserc.json');
-  await ctx.io.fs.writeText(rc, JSON.stringify(lighthouseRc(outputDir, urls), null, 2));
-  // lhci runs in a temp dir that is not a git checkout; upload needs the commit, so it is given explicitly.
-  const run = { cwd: dir, env: { LHCI_BUILD_CONTEXT__CURRENT_HASH: ctx.inputs.buildId }, timeoutMs: LHCI_TIMEOUT_MS };
-  await runToolOk(ctx, 'lhci', ['collect', `--config=${rc}`], run);
-  await runToolOk(ctx, 'lhci', ['upload', `--config=${rc}`], run);
-  const linksText = await ctx.io.fs.readTextIfExists(join(dir, '.lighthouseci', 'links.json'));
-  const links: Record<string, string> = {};
-  if (linksText !== undefined) {
-    for (const [k, v] of Object.entries(asObject(parseJson(linksText, 'links.json'), 'links.json'))) links[k] = asString(v, k);
+/**
+ * Pre-deploy gate: Lighthouse against the processed output served by wrangler locally, with the deploy's own
+ * config, so headers (CSP included), redirects and 404 handling are what production will serve.
+ */
+export async function lighthouseStage(ctx: StageContext): Promise<void> {
+  if (!ctx.inputs.lighthouse) {
+    ctx.io.log.info('lighthouse: false — Lighthouse gate skipped');
+    ctx.state.lighthouse = { skipped: true, urls: [], links: {}, failures: [] };
+    return;
   }
-  ctx.state.lighthouse = { skipped: false, urls, links };
-  const assert = await runTool(ctx, 'lhci', ['assert', `--config=${rc}`], run);
-  if (assert.code !== 0) throw new Error('Lighthouse gate failed: every category must score 100 (median of 3 runs); see the report links');
+  const paths = await auditedUrls(ctx, '');
+  const result = await withLocalServer(ctx, paths[0] ?? '/', (origin) => runLighthouse(ctx, paths.map((p) => `${origin}${p}`), 'local'));
+  ctx.state.lighthouse = { skipped: false, urls: result.urls, links: result.links, failures: result.failures };
+  if (!result.passed) {
+    throw new Error(`Lighthouse gate failed: every category must score 100 (median of 3 runs):\n  - ${describeFailures(result)}`);
+  }
 }

@@ -1,5 +1,5 @@
 {
-  "score": 93.2,
+  "score": 93.3,
   "categories": [
     {
       "id": "access",
@@ -11,7 +11,7 @@
       "id": "indexability",
       "title": "Indexability",
       "weight": 25.0,
-      "score": 95.0
+      "score": 95.2
     },
     {
       "id": "delivery",
@@ -56,6 +56,17 @@
         "llmstxt-spec",
         "ahrefs-llmstxt-2026",
         "seranking-llmstxt-2026"
+      ]
+    },
+    {
+      "checkId": "index.csp_robots",
+      "title": "CSP lets the page fetch /robots.txt (Lighthouse SEO)",
+      "severity": "blocking",
+      "passed": true,
+      "evidence": "no Content-Security-Policy applies to the audited pages",
+      "citations": [
+        "lighthouse-robots-txt",
+        "w3c-csp3"
       ]
     },
     {

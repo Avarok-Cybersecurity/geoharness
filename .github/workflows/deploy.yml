@@ -45,6 +45,8 @@ jobs:
           # Zone-wide settings that would change every site on avarok.net are left to the zone owner.
           extra-optimizations: all -bot_fight_mode -ai_bots_protection -email_obfuscation -rocket_loader
           deploy: "true"
+          # A build that fails the live GEO audit or the production Lighthouse gate is replaced by the previous one.
+          rollback-on-failure: "true"
       - name: Result
         env:
           GEO_SCORE: ${{ steps.geoharness.outputs.geo-score }}

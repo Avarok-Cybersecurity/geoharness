@@ -1,10 +1,10 @@
-import { join } from 'node:path';
 import { createProxiedCname, listDnsRecords } from '../io/cloudflare/dns.js';
 import { addPagesDomain, listPagesDomains, pagesProjectExists } from '../io/cloudflare/pages.js';
 import { findZoneForHost } from '../io/cloudflare/zones.js';
-import { generateWranglerConfig, negotiateEntry } from '../lib/wrangler-generate.js';
 import { need, primaryHost, type StageContext } from './context.js';
+import { recordPrevious } from './rollback.js';
 import { runToolOk, wranglerEnv } from './tools.js';
+import { workerConfig } from './worker-config.js';
 
 const DEPLOY_TIMEOUT_MS = 20 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -20,27 +20,14 @@ async function previousSitemap(ctx: StageContext, host: string): Promise<string 
 }
 
 async function deployWorkers(ctx: StageContext): Promise<void> {
-  const built = need(ctx.state, 'build', 'deploy');
   const access = need(ctx.state, 'access', 'deploy');
   const run = { cwd: ctx.inputs.sitePath, env: wranglerEnv(ctx), timeoutMs: DEPLOY_TIMEOUT_MS };
-  if (built.repoWranglerConfig !== undefined) {
-    if (access.negotiation === 'negotiate-worker') {
-      ctx.io.log.warn('The repo owns its Worker: import { negotiate } from edge/negotiate.mjs in it so agents get markdown twins.');
-    }
-    await runToolOk(ctx, 'wrangler', ['deploy', '--config', built.repoWranglerConfig], run);
-    return;
+  const config = await workerConfig(ctx, 'deploy');
+  if (config.repoOwned && access.negotiation === 'negotiate-worker') {
+    ctx.io.log.warn('The repo owns its Worker: import { negotiate } from edge/negotiate.mjs in it so agents get markdown twins.');
   }
-  let main: string | undefined;
-  if (access.negotiation === 'negotiate-worker') {
-    main = join(ctx.inputs.stateDir, 'negotiate-worker.mjs');
-    await ctx.io.fs.writeText(main, negotiateEntry(ctx.negotiateModule));
-  }
-  const config = generateWranglerConfig({
-    name: ctx.inputs.projectName, outputDir: built.outputDir, domains: ctx.inputs.domains, notFoundHandling: built.notFoundHandling, main,
-  });
-  const file = join(ctx.inputs.stateDir, 'wrangler.json');
-  await ctx.io.fs.writeText(file, `${JSON.stringify(config, null, 2)}\n`);
-  await runToolOk(ctx, 'wrangler', ['deploy', '--config', file], run);
+  ctx.state.previousDeployment = await recordPrevious(ctx, config.workerName);
+  await runToolOk(ctx, 'wrangler', ['deploy', '--config', config.file], run);
 }
 
 async function ensurePagesDomains(ctx: StageContext): Promise<void> {
@@ -69,6 +56,7 @@ async function deployPages(ctx: StageContext): Promise<void> {
   if (!(await pagesProjectExists(ctx.cf, ctx.inputs.accountId, ctx.inputs.projectName))) {
     await runToolOk(ctx, 'wrangler', ['pages', 'project', 'create', ctx.inputs.projectName, '--production-branch', branch], run);
   }
+  ctx.state.previousDeployment = await recordPrevious(ctx, undefined);
   await runToolOk(ctx, 'wrangler', ['pages', 'deploy', built.outputDir, '--project-name', ctx.inputs.projectName,
     '--branch', branch, '--commit-hash', ctx.inputs.buildId], run);
   await ensurePagesDomains(ctx);

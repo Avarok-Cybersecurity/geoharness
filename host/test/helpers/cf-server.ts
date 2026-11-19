@@ -15,6 +15,10 @@ export interface CfState {
   tiered: Record<string, string>;
   bot: Record<string, Json>;
   workerDomains: { hostname: string; service: string; zone_id: string }[];
+  /** Worker name → its deployments (newest first, as the API returns them); absent = the Worker does not exist. */
+  workerDeployments: Record<string, Json[]>;
+  /** Pages project → id of its production deployment. */
+  pagesProduction: Record<string, string>;
   /** Path prefixes answered with 403 / code 10000. */
   denied: string[];
 }
@@ -77,13 +81,28 @@ function route(s: CfState, method: string, path: string, query: URLSearchParams,
     const host = query.get('hostname');
     return [200, ok(s.workerDomains.filter((d) => host === null || d.hostname === host), { total_pages: 1 })];
   }
+  const deployments = /^\/accounts\/[^/]+\/workers\/scripts\/([^/]+)\/deployments$/.exec(path);
+  if (deployments !== null && method === 'GET') {
+    const list = s.workerDeployments[decodeURIComponent(deployments[1] ?? '')];
+    return list === undefined ? [404, fail(10007, 'This Worker does not exist on your account.')] : [200, ok({ deployments: list })];
+  }
+  const project = /^\/accounts\/[^/]+\/pages\/projects\/([^/]+)$/.exec(path);
+  if (project !== null && method === 'GET') {
+    const id = s.pagesProduction[decodeURIComponent(project[1] ?? '')];
+    return id === undefined ? [404, fail(8000007, 'Project not found')] : [200, ok({ name: project[1], canonical_deployment: { id } })];
+  }
+  const rollback = /^\/accounts\/[^/]+\/pages\/projects\/([^/]+)\/deployments\/([^/]+)\/rollback$/.exec(path);
+  if (rollback !== null && method === 'POST') {
+    s.pagesProduction[decodeURIComponent(rollback[1] ?? '')] = decodeURIComponent(rollback[2] ?? '');
+    return [200, ok({ id: rollback[2] })];
+  }
   if (/^\/accounts\/[^/]+\/(workers\/scripts|pages\/projects)$/.test(path)) return [200, ok([])];
   if (/^\/zones\/[^/]+\/dns_records$/.test(path)) return [200, ok([], { total_pages: 1 })];
   return [404, fail(7003, `no route for ${method} ${path}`)];
 }
 
 export async function startFakeCf(state: Partial<CfState>): Promise<FakeCf> {
-  const s: CfState = { zones: [], rulesets: {}, settings: {}, tiered: {}, bot: {}, workerDomains: [], denied: [], ...state };
+  const s: CfState = { zones: [], rulesets: {}, settings: {}, tiered: {}, bot: {}, workerDomains: [], workerDeployments: {}, pagesProduction: {}, denied: [], ...state };
   const requests: RecordedRequest[] = [];
   const server: Server = createServer((req, res) => {
     void (async () => {

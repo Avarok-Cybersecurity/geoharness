@@ -93,6 +93,8 @@ jobs:
           lighthouse-max-urls: 5
           # Pull requests build, audit and run Lighthouse without deploying or touching the zone.
           deploy: ${{ github.event_name == 'push' }}
+          # Required when deploying: put the previous version back if the live checks fail.
+          rollback-on-failure: true
 ```
 
 ## How it works
@@ -134,11 +136,12 @@ Composite actions do not enforce `required`, so GeoHarness validates every input
 | `target` | no | `workers` | Deploy target: workers (assets-only Worker on Custom Domains) or pages. |
 | `project-name` | yes | — | Worker or Pages project name (lower-case letters, digits, hyphens). |
 | `domains` | yes | — | Newline-separated host names to serve the site on. The host of site.origin in geoharness.toml must be one of them. |
-| `lighthouse` | no | `true` | Run the Lighthouse gate (100 in all four categories, median of 3 runs). false skips it. |
-| `lighthouse-max-urls` | no | — | How many URLs from the generated sitemap Lighthouse audits. Required when lighthouse is true. |
+| `lighthouse` | no | `true` | Run the Lighthouse gates (100 in all four categories, median of 3 runs): before deploy against the output served locally by wrangler with the deploy's own config, and after deploy against the live site. false skips both. |
+| `lighthouse-max-urls` | no | — | How many URLs from the generated sitemap Lighthouse audits, locally and live. Required when lighthouse is true. |
 | `geo-min-score` | yes | — | Minimum GEO score (0–100) for the build audit and the live audit. |
 | `extra-optimizations` | no | `all` | Free zone optimizations, as tokens applied left to right: all, none, &lt;id>, -&lt;id>. Ids: email_obfuscation, rocket_loader, early_hints, http3, brotli, smart_tiered_cache, zstd, bot_fight_mode, ai_bots_protection. Example: "all -rocket_loader". |
 | `deploy` | no | `true` | true deploys, configures the zone, verifies live and pings IndexNow. false is a dry run for pull requests: build, process, GEO audit and Lighthouse only, with no Cloudflare API call. |
+| `rollback-on-failure` | no | — | Required when deploy is true (no default). true: when the post-deploy verification (live GEO audit or the production Lighthouse gate) fails, put production back on the version it served before this deploy (wrangler rollback for workers, the Pages rollback API for pages), then fail. false: fail and leave the new build live. A first deploy has nothing to roll back to and just fails. |
 | `rag` | no | `false` | Coming in v1.1 (RAG index export). Not implemented yet; setting it to true fails the run. |
 
 ### Outputs
@@ -159,6 +162,7 @@ The full reference is in [docs/config.md](docs/config.md) and on [geo.avarok.net
 - `[[bots]]` user-agent groups (`search`, `user`, `training`, `other`) with allow/disallow paths.
 - `[content]` the main-content selector and excluded routes; `[llms]` the llms.txt summary and sections.
 - `env` the only environment variables templates may read; `[headers]` immutable asset paths; `[prerender]` routes for SPA prerendering.
+- `[analytics]` `cloudflareWebAnalytics`: true extends the site's own CSP in `_headers` so the beacon Cloudflare injects can load and report (the only edit GeoHarness makes to the site's headers); false or absent makes verify fail if Cloudflare injects it anyway.
 
 Unknown keys are errors, and each default is documented with its reason. This repository's own file is [site/geoharness.toml](site/geoharness.toml).
 
@@ -214,7 +218,7 @@ Preflight probes each enabled feature and fails listing every missing group befo
 | `_headers` rules | 100 | Site's own plus GeoHarness's; more is a build error |
 | Markdown for Agents | Pro and above | Not used; reproduced with twins and rules |
 
-**Fail modes.** Missing permissions fail preflight. Without zone access GeoHarness falls back to a negotiate Worker that runs first; it counts against the 100,000 requests/day of Workers Free and past that Cloudflare answers HTTP 429 (error 1027) until the daily reset; the run warns. A failed audit or Lighthouse gate stops before deploy, so the live site keeps its previous build. Verify waits up to 5 minutes for the edge to serve the new build. Only rules tagged `geoharness:<host>` are ever changed.
+**Fail modes.** Missing permissions fail preflight. Without zone access GeoHarness falls back to a negotiate Worker that runs first; it counts against the 100,000 requests/day of Workers Free and past that Cloudflare answers HTTP 429 (error 1027) until the daily reset; the run warns. A failed audit or pre-deploy Lighthouse gate stops before deploy, so the live site keeps its previous build. Verify waits up to 5 minutes for the edge to serve the new build; a failed live audit or production Lighthouse gate then rolls back when `rollback-on-failure` is true. Only rules tagged `geoharness:<host>` are ever changed.
 
 ## GEO score
 
@@ -239,6 +243,8 @@ Preflight probes each enabled feature and fails listing every missing group befo
 | `index.canonical` | Page has a canonical link | indexability | blocking | A | [google-ai-guide-2026](#citations) |
 | `index.broken_links` | Internal links resolve | indexability | blocking | A | [google-ai-guide-2026](#citations) |
 | `index.live_build` | Live site serves this build | indexability | blocking | A | [cf-workers-static-assets](#citations) |
+| `index.csp_robots` | CSP lets the page fetch /robots.txt (Lighthouse SEO) | indexability | blocking | A, A (spec) | [lighthouse-robots-txt](#citations), [w3c-csp3](#citations) |
+| `index.live_beacon` | No Cloudflare Web Analytics beacon the CSP was not extended for | indexability | blocking | A | [cf-web-analytics](#citations), [lighthouse-errors-in-console](#citations) |
 | `delivery.twin` | Markdown twin exists and matches the page | delivery | blocking | A, A (spec) | [google-spam-policies](#citations), [llmstxt-spec](#citations), [htmlrag-2025](#citations) |
 | `delivery.live_negotiation` | Accept: text/markdown gets markdown with Vary: Accept | delivery | blocking | A, C | [cf-markdown-for-agents](#citations), [cf-transform-rules](#citations), [checkly-2026](#citations) |
 | `delivery.live_files` | HTML pages, robots.txt, llms.txt and sitemap.xml are served correctly | delivery | blocking | A (spec) | [cf-content-signals](#citations), [llmstxt-spec](#citations) |
@@ -254,7 +260,12 @@ Preflight probes each enabled feature and fails listing every missing group befo
 
 ## Lighthouse gate
 
-`lighthouse: true` requires **100 in performance, accessibility, best practices and SEO**, as the **median of 3 runs** per URL, for the first `lighthouse-max-urls` URLs of the generated sitemap, served from the build output before deploy. Reports go to Lighthouse CI's temporary public storage and are linked from the job summary.
+`lighthouse: true` requires **100 in performance, accessibility, best practices and SEO**, as the **median of 3 runs** per URL, for the first `lighthouse-max-urls` URLs of the generated sitemap — twice:
+
+1. **Before deploy**, against the processed output served locally by `wrangler dev --local` (wrangler 4.156.0) with **the same wrangler config the deploy uses** (`wrangler pages dev` for `target: pages`), so `_headers` (CSP included), `html_handling` and 404 handling are what production serves. No Cloudflare account is involved. Lighthouse CI's own static server ignores all three, which once let a CSP that blocks Lighthouse's `robots.txt` fetch pass the gate and score 92 in production.
+2. **After deploy**, against the live URLs, once the live build meta equals the commit. Only production shows what the edge adds, such as the Cloudflare Web Analytics beacon. On failure, `rollback-on-failure: true` puts production back on the version it served before (`wrangler rollback <version>` for workers, the Pages rollback API for pages); a first deploy has nothing to roll back to. The run then fails with the failing audits in the job summary.
+
+Reports go to Lighthouse CI's temporary public storage and are linked from the job summary.
 
 ## AI search with LatticeDB
 
@@ -359,6 +370,12 @@ Accessed dates are when the source was read for GeoHarness.
 | openai-bots | OpenAI, "Overview of OpenAI crawlers". https://developers.openai.com/api/docs/bots (accessed 2026-11-19) | A | GPTBot, OAI-SearchBot, ChatGPT-User tokens. |
 | anthropic-bots | Anthropic, "Does Anthropic crawl data from the web". https://support.claude.com/en/articles/8896518-what-is-claudebot (accessed 2026-11-19) | A | ClaudeBot, Claude-SearchBot, Claude-User tokens. |
 | perplexity-bots | Perplexity, "Perplexity crawlers". https://docs.perplexity.ai/guides/bots (accessed 2026-11-19) | A | PerplexityBot, Perplexity-User tokens. |
+| lighthouse-robots-txt | Chrome for Developers, Lighthouse "robots.txt is not valid". https://developer.chrome.com/docs/lighthouse/seo/invalid-robots-txt/ (accessed 2026-11-19) | A | The SEO audit fails when Lighthouse cannot download robots.txt; Lighthouse fetches it from the audited page's context, so the page's CSP `connect-src` must admit the origin (observed with Lighthouse 13: "Fetch of robots.txt failed" under `default-src 'none'`). Basis for `index.csp_robots`. |
+| lighthouse-errors-in-console | Chrome for Developers, Lighthouse "Browser errors were logged to the console". https://developer.chrome.com/docs/lighthouse/best-practices/errors-in-console/ (accessed 2026-11-19) | A | Any console error, including a CSP violation, fails the Best Practices audit. Why a blocked beacon is a blocking live finding. |
+| w3c-csp3 | W3C, Content Security Policy Level 3. https://www.w3.org/TR/CSP3/ (accessed 2026-11-19) | A (spec) | Directive parsing, the `script-src`/`connect-src` → `default-src` fallback, multiple policies in one header, source matching. |
+| cf-web-analytics | Cloudflare docs, Web Analytics get started (automatic setup, Manage site → Disable) and FAQ (CSP: `static.cloudflareinsights.com` in `script-src`; `'self'` in `connect-src` for automatic injection, `cloudflareinsights.com` for manual embedding). https://developers.cloudflare.com/web-analytics/get-started/ and https://developers.cloudflare.com/web-analytics/faq/ (accessed 2026-11-19) | A | `analytics.cloudflareWebAnalytics` and the live beacon check. |
+| cf-workers-rollbacks | Cloudflare docs, Workers rollbacks. https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/ (accessed 2026-11-19) | A | `wrangler rollback <version-id>` sends 100% of traffic to that version; only the 100 latest versions. |
+| cf-pages-rollback | Cloudflare docs, Pages rollbacks and the API's "Rollback deployment" (`POST /accounts/{account_id}/pages/projects/{project_name}/deployments/{deployment_id}/rollback`, Pages Write). https://developers.cloudflare.com/pages/configuration/rollbacks/ and https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/rollback/ (accessed 2026-11-19) | A | Only successful production deployments are rollback targets. |
 | qdrant-query-api | Qdrant docs, hybrid queries, sparse vectors, inference. https://qdrant.tech/documentation/concepts/hybrid-queries/ (accessed 2026-11-19) | A | Request shapes LatticeDB's text, sparse and fusion queries follow. |
 
 ### Tools and prior art

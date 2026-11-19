@@ -1,5 +1,5 @@
 import type { AuditReport } from '../core/types-index.js';
-import type { RunState } from '../stages/context.js';
+import type { LighthouseState, RunState } from '../stages/context.js';
 
 const cell = (s: string): string => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
@@ -16,6 +16,22 @@ function auditSection(title: string, r: AuditReport): string[] {
   return [...lines, ''];
 }
 
+function lighthouseSection(title: string, lh: LighthouseState): string[] {
+  const out = [`### ${title}`, ''];
+  if (lh.skipped) return [...out, 'Skipped (`lighthouse: false`).', ''];
+  for (const u of lh.urls) {
+    const link = Object.entries(lh.links).find(([k]) => new URL(k).pathname === new URL(u).pathname)?.[1];
+    out.push(`- ${new URL(u).pathname}${link === undefined ? '' : ` — [report](${link})`}`);
+  }
+  out.push('');
+  if (lh.failures.length > 0) {
+    out.push('| URL | Category | Median | Failing audits |', '|---|---|---:|---|');
+    for (const f of lh.failures) out.push(`| ${cell(f.url)} | ${f.category} | ${f.score} | ${cell(f.audits.join('; '))} |`);
+    out.push('');
+  }
+  return out;
+}
+
 /** The GITHUB_STEP_SUMMARY body: whatever the run reached, including after a failure. */
 export function renderSummary(state: RunState, failure: string | undefined): string {
   const out = ['## GeoHarness', ''];
@@ -24,18 +40,9 @@ export function renderSummary(state: RunState, failure: string | undefined): str
   if (state.deploy !== undefined) out.push(`Deployed to ${state.deploy.url} (${state.deploy.target})`, '');
   if (state.liveAudit !== undefined) out.push(...auditSection('GEO score (live)', state.liveAudit));
   if (state.staticAudit !== undefined) out.push(...auditSection('GEO score (build)', state.staticAudit));
-  const lh = state.lighthouse;
-  if (lh !== undefined) {
-    out.push('### Lighthouse', '');
-    if (lh.skipped) out.push('Skipped (`lighthouse: false`).', '');
-    else {
-      for (const u of lh.urls) {
-        const link = Object.entries(lh.links).find(([k]) => new URL(k).pathname === new URL(u).pathname)?.[1];
-        out.push(`- ${new URL(u).pathname}${link === undefined ? '' : ` — [report](${link})`}`);
-      }
-      out.push('');
-    }
-  }
+  if (state.rollback !== undefined) out.push(`**Rollback:** ${cell(state.rollback.detail)}`, '');
+  if (state.liveLighthouse !== undefined) out.push(...lighthouseSection('Lighthouse (live)', state.liveLighthouse));
+  if (state.lighthouse !== undefined) out.push(...lighthouseSection('Lighthouse (before deploy, local wrangler)', state.lighthouse));
   const pages = state.processed?.pages;
   if (pages !== undefined) {
     out.push(`### Markdown twins (${pages.length})`, '', '| Route | Twin | Tokens |', '|---|---|---:|');
