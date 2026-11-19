@@ -90,6 +90,7 @@ pub mod warning {
     pub const SECTION_EMPTY: &str = "llms.section_empty";
     pub const JSONLD_INVALID: &str = "page.jsonld_invalid";
     pub const MIXED_LAYOUT: &str = "rewrite.mixed_layout";
+    pub const CSP_EXTENDED: &str = "headers.csp_extended";
 }
 
 /// Builds a warning `CoreError`.

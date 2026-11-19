@@ -82,6 +82,7 @@ pub fn observe(requests: Vec<LiveRequest>) -> Vec<LiveObservation> {
                     ("Vary".into(), "Accept-Encoding, Accept".into()),
                 ]),
                 body_prefix: r.expect.body_includes.unwrap_or_default(),
+                body_suffix: "</body></html>".into(),
             }
         })
         .collect()

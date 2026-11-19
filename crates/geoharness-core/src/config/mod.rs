@@ -25,6 +25,20 @@ pub struct SiteConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub prerender: Option<Prerender>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub analytics: Option<Analytics>,
+}
+
+/// Third-party analytics the site opts into. Present only when the site
+/// states a choice; inside it every key is required.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Analytics {
+    /// Cloudflare Web Analytics (`cf-web-analytics`): true extends the site's
+    /// CSP so the beacon Cloudflare injects can load and report.
+    pub cloudflare_web_analytics: bool,
 }
 
 /// Routes the host's prerender adapter (e.g. vite-prerender) renders to
@@ -148,6 +162,11 @@ pub struct Headers {
 }
 
 impl SiteConfig {
+    /// Whether the site opted into Cloudflare Web Analytics.
+    pub fn cloudflare_web_analytics(&self) -> bool {
+        self.analytics.is_some_and(|a| a.cloudflare_web_analytics)
+    }
+
     /// Host part of `site.origin` (validated to exist by `parse_config`).
     pub fn host(&self) -> &str {
         self.site

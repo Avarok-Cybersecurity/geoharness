@@ -80,6 +80,20 @@ pub const LIVE_BUILD: Check = Check {
     severity: Blocking,
     citations: &["cf-workers-static-assets"],
 };
+pub const CSP_ROBOTS: Check = Check {
+    id: "index.csp_robots",
+    title: "CSP lets the page fetch /robots.txt (Lighthouse SEO)",
+    category: "indexability",
+    severity: Blocking,
+    citations: &["lighthouse-robots-txt", "w3c-csp3"],
+};
+pub const LIVE_BEACON: Check = Check {
+    id: "index.live_beacon",
+    title: "No Cloudflare Web Analytics beacon the CSP was not extended for",
+    category: "indexability",
+    severity: Blocking,
+    citations: &["cf-web-analytics", "lighthouse-errors-in-console"],
+};
 pub const TWIN: Check = Check {
     id: "delivery.twin",
     title: "Markdown twin exists and matches the page",
@@ -176,6 +190,8 @@ pub const CHECKS: &[&Check] = &[
     &CANONICAL,
     &BROKEN_LINKS,
     &LIVE_BUILD,
+    &CSP_ROBOTS,
+    &LIVE_BEACON,
     &TWIN,
     &LIVE_NEGOTIATION,
     &LIVE_FILES,

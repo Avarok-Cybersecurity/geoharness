@@ -32,6 +32,7 @@ pub fn audit(input: &AuditInput) -> Result<AuditReport, Vec<CoreError>> {
     let mut scored = vec![
         checks::access::robots_bots(input),
         checks::advisory::llms(input.llms.as_deref()),
+        checks::csp::robots_fetch(config, &input.headers, &routes),
     ];
     for p in &pages {
         scored.push(checks::access::spa_shell(p));
@@ -44,6 +45,7 @@ pub fn audit(input: &AuditInput) -> Result<AuditReport, Vec<CoreError>> {
         let target = LiveTarget::from_config(config, Some(&input.build_id))?;
         let routes: Vec<String> = input.pages.iter().map(|p| p.route.clone()).collect();
         scored.extend(checks::live::checks(&target, &routes, live));
+        scored.push(checks::csp::live_beacon(config, live));
     }
     Ok(score::report(scored))
 }

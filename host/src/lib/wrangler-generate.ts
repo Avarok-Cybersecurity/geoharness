@@ -1,7 +1,11 @@
 import type { NotFoundHandling } from '../adapters/types.js';
 
-/** Fixed so deploys are reproducible; bump deliberately. */
-export const COMPATIBILITY_DATE = '2026-11-01';
+/**
+ * Fixed so deploys are reproducible; bump deliberately. It must not be newer than the workerd bundled with the
+ * pinned wrangler (4.156.0 supports up to 2026-10-30): the pre-deploy Lighthouse gate serves the same config
+ * with `wrangler dev`, which refuses a newer date.
+ */
+export const COMPATIBILITY_DATE = '2026-10-30';
 
 export interface GeneratedWorker {
   name: string;

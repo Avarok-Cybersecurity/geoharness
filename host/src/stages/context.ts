@@ -6,7 +6,16 @@ import type { Inputs } from '../inputs.js';
 import type { CfClient } from '../io/cloudflare/client.js';
 import type { Zone } from '../io/cloudflare/zones.js';
 import type { HostIO } from '../io/types.js';
+import type { LighthouseFailure } from '../lib/lighthouse-report.js';
 import type { OptimizationId } from '../lib/optimizations.js';
+
+export interface LighthouseState { skipped: boolean; urls: string[]; links: Record<string, string>; failures: LighthouseFailure[] }
+
+/** What production served before this deploy, recorded by deploy so verify can roll back to it. */
+export type PreviousDeployment =
+  | { target: 'workers'; workerName: string; versionId: string | undefined }
+  | { target: 'pages'; deploymentId: string | undefined }
+  | { target: 'unknown'; reason: string };
 
 /** Everything a stage produces for later stages; persisted as JSON between `geoharness <stage>` calls. */
 export interface RunState {
@@ -28,7 +37,12 @@ export interface RunState {
     files: string[];
   };
   staticAudit?: AuditReport;
-  lighthouse?: { skipped: boolean; urls: string[]; links: Record<string, string> };
+  /** Pre-deploy gate (local wrangler server). */
+  lighthouse?: LighthouseState;
+  /** Post-deploy gate (the live site). */
+  liveLighthouse?: LighthouseState;
+  previousDeployment?: PreviousDeployment;
+  rollback?: { performed: boolean; detail: string };
   previousSitemap?: string;
   deploy?: { url: string; target: 'workers' | 'pages' };
   zoneChanges?: string[];

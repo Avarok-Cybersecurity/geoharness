@@ -41,7 +41,26 @@ export interface ProcOptions {
   stream: boolean;
 }
 export interface ProcResult { code: number; stdout: string; stderr: string }
-export interface Proc { run(command: string, args: readonly string[], options: ProcOptions): Promise<ProcResult> }
+/** A long-running process (a local server). Its whole process tree is stopped by stop() and on host exit. */
+export interface Running {
+  /** Settles when the process exits, for whatever reason. */
+  readonly exited: Promise<ProcResult>;
+  /** Output so far (redacted), for error messages. */
+  output(): string;
+  /** Terminates the process tree (SIGTERM, then SIGKILL after a grace period); resolves once it exited. */
+  stop(): Promise<void>;
+}
+export type StartOptions = Omit<ProcOptions, 'timeoutMs'>;
+export interface Proc {
+  run(command: string, args: readonly string[], options: ProcOptions): Promise<ProcResult>;
+  start(command: string, args: readonly string[], options: StartOptions): Running;
+}
+
+/** Local network facts the host needs (no traffic). */
+export interface Net {
+  /** A TCP port on 127.0.0.1 that was free when asked. */
+  freePort(): Promise<number>;
+}
 
 export interface Log {
   info(message: string): void;
@@ -57,4 +76,4 @@ export interface Clock {
   sleep(ms: number): Promise<void>;
 }
 
-export interface HostIO { fs: Fs; git: Git; http: Http; proc: Proc; log: Log; env: Env; clock: Clock }
+export interface HostIO { fs: Fs; git: Git; http: Http; proc: Proc; net: Net; log: Log; env: Env; clock: Clock }

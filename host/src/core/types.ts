@@ -11,7 +11,7 @@ export type CoreError = { code: string, message: string,
  */
 path?: string, };
 
-export type SiteConfig = { site: Site, identity: Identity, contentSignal: ContentSignal, bots: Array<BotPolicy>, content: Content, llms: Llms, env: Array<string>, headers: Headers, prerender?: Prerender, };
+export type SiteConfig = { site: Site, identity: Identity, contentSignal: ContentSignal, bots: Array<BotPolicy>, content: Content, llms: Llms, env: Array<string>, headers: Headers, prerender?: Prerender, analytics?: Analytics, };
 
 export type Site = { 
 /**
@@ -61,6 +61,13 @@ immutable: Array<string>, };
 
 export type Prerender = { routes: Array<string>, };
 
+export type Analytics = { 
+/**
+ * Cloudflare Web Analytics (`cf-web-analytics`): true extends the site's
+ * CSP so the beacon Cloudflare injects can load and report.
+ */
+cloudflareWebAnalytics: boolean, };
+
 export type SiteInput = { config: SiteConfig, 
 /**
  * Commit SHA.
@@ -105,7 +112,12 @@ export type LiveRequest = { url: string, userAgent: string, accept: string, expe
 
 export type LiveExpect = { status: number, contentType?: string, varyIncludes?: string, bodyIncludes?: string, };
 
-export type LiveObservation = { url: string, userAgent: string, accept: string, status: number, headers: { [key in string]: string }, bodyPrefix: string, };
+export type LiveObservation = { url: string, userAgent: string, accept: string, status: number, headers: { [key in string]: string }, bodyPrefix: string, 
+/**
+ * The end of the body (same length bound as the prefix): edge-injected
+ * scripts such as the Web Analytics beacon sit before `</body>`.
+ */
+bodySuffix: string, };
 
 export type AuditInput = { config: SiteConfig, 
 /**

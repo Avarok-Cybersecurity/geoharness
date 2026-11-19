@@ -4,6 +4,7 @@ import { nodeFs } from './fs.js';
 import { nodeGit } from './git.js';
 import { nodeHttp } from './http.js';
 import { githubLog } from './log.js';
+import { nodeNet } from './net.js';
 import { nodeProc } from './proc.js';
 
 export function nodeHostIO(): HostIO {
@@ -14,6 +15,7 @@ export function nodeHostIO(): HostIO {
     git: nodeGit(proc),
     http: nodeHttp,
     proc,
+    net: nodeNet,
     log,
     env: { get: (name) => process.env[name] },
     clock: { nowMs: () => Date.now(), sleep: async (ms) => { await sleep(ms); } },

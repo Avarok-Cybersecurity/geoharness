@@ -8,7 +8,7 @@ const BASE: Record<string, string> = {
   INPUT_CLOUDFLARE_API_TOKEN: 't', INPUT_CLOUDFLARE_ACCOUNT_ID: ACCOUNT, INPUT_SITE_PATH: 'site', INPUT_ADAPTER: 'auto',
   INPUT_TARGET: 'workers', INPUT_PROJECT_NAME: 'geo-site', INPUT_DOMAINS: 'geo.example.com\nwww.example.com\n',
   INPUT_LIGHTHOUSE: 'true', INPUT_LIGHTHOUSE_MAX_URLS: '5', INPUT_GEO_MIN_SCORE: '80', INPUT_EXTRA_OPTIMIZATIONS: 'all -rocket_loader',
-  INPUT_DEPLOY: 'true', INPUT_RAG: 'false', GITHUB_WORKSPACE: '/w', GITHUB_SHA: SHA, GEOHARNESS_STATE_DIR: '/tmp/gh',
+  INPUT_DEPLOY: 'true', INPUT_ROLLBACK_ON_FAILURE: 'true', INPUT_RAG: 'false', GITHUB_WORKSPACE: '/w', GITHUB_SHA: SHA, GEOHARNESS_STATE_DIR: '/tmp/gh',
 };
 const read = (over: Record<string, string>) => readInputs({ get: (n) => ({ ...BASE, ...over })[n] });
 
@@ -36,6 +36,14 @@ describe('inputs', () => {
     expect(dry.apiToken).toBe('');
     expect(() => read({ INPUT_CLOUDFLARE_ACCOUNT_ID: '' })).toThrow(/cloudflare-account-id is required/);
     expect(() => read({ INPUT_DEPLOY: 'maybe' })).toThrow(/deploy must be "true" or "false"/);
+  });
+
+  it('rollback-on-failure has no default: required when deploying, irrelevant in a dry run', () => {
+    expect(read({}).rollbackOnFailure).toBe(true);
+    expect(read({ INPUT_ROLLBACK_ON_FAILURE: 'false' }).rollbackOnFailure).toBe(false);
+    expect(() => read({ INPUT_ROLLBACK_ON_FAILURE: '' })).toThrow(/rollback-on-failure is required/);
+    expect(() => read({ INPUT_ROLLBACK_ON_FAILURE: 'yes' })).toThrow(/rollback-on-failure must be "true" or "false"/);
+    expect(read({ INPUT_DEPLOY: 'false', INPUT_ROLLBACK_ON_FAILURE: '' }).rollbackOnFailure).toBe(false);
   });
 
   it('rejects unimplemented rag instead of ignoring it', () => {

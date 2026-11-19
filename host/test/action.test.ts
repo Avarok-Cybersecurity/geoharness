@@ -47,5 +47,6 @@ describe('workflows', () => {
     const deploy = wf.slice(wf.indexOf('\n  deploy:'), wf.indexOf('\n  dry-run:'));
     expect(deploy).toContain("github.ref == 'refs/heads/main'");
     expect(deploy).toContain('cancel-in-progress: false');
+    expect(deploy).toContain('rollback-on-failure: "true"');
   });
 });

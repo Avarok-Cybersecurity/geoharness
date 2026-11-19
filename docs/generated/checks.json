@@ -107,6 +107,26 @@
       "title": "Live site serves this build"
     },
     {
+      "category": "indexability",
+      "citations": [
+        "lighthouse-robots-txt",
+        "w3c-csp3"
+      ],
+      "id": "index.csp_robots",
+      "severity": "blocking",
+      "title": "CSP lets the page fetch /robots.txt (Lighthouse SEO)"
+    },
+    {
+      "category": "indexability",
+      "citations": [
+        "cf-web-analytics",
+        "lighthouse-errors-in-console"
+      ],
+      "id": "index.live_beacon",
+      "severity": "blocking",
+      "title": "No Cloudflare Web Analytics beacon the CSP was not extended for"
+    },
+    {
       "category": "delivery",
       "citations": [
         "google-spam-policies",

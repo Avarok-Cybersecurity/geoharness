@@ -24,6 +24,8 @@ export interface Inputs {
   optimizations: Set<OptimizationId>;
   /** false: build, process, audit and Lighthouse only — no Cloudflare API call, no deploy, no zone change. */
   deploy: boolean;
+  /** After a failed post-deploy verification, roll production back to the version it served before. Meaningful only when deploy is true. */
+  rollbackOnFailure: boolean;
   buildId: string;
   stateDir: string;
 }
@@ -72,6 +74,8 @@ export function readInputs(env: Env): Inputs {
   // A dry run (pull requests, forks without secrets) never talks to Cloudflare, so needs no credentials.
   const apiToken = deploy ? required('cloudflare-api-token') : '';
   const accountId = deploy ? required('cloudflare-account-id') : '';
+  // No default: whether a failing build stays live is a policy the workflow states.
+  const rollbackOnFailure = deploy ? bool('rollback-on-failure') : false;
   if (accountId !== '' && !ACCOUNT.test(accountId)) problems.push('cloudflare-account-id must be 32 hex characters');
 
   const workspace = env.get('GITHUB_WORKSPACE') ?? '';
@@ -119,6 +123,6 @@ export function readInputs(env: Env): Inputs {
     target, projectName, domains, lighthouse, lighthouseMaxUrls,
     geoMinScore: geoMinScore ?? 0,
     optimizations: opt.ok ? opt.value : new Set(),
-    deploy, buildId, stateDir,
+    deploy, rollbackOnFailure, buildId, stateDir,
   };
 }

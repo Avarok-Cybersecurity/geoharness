@@ -30,6 +30,8 @@ Parsed by `parseConfig` (contract §1). Keys are camelCase. **Unknown keys are e
 | `headers.immutable` | string[] | no | `[]` (no asset is assumed to be content-hashed) | Cloudflare `_headers` URL patterns starting with `/` |
 | `prerender` | table | no | absent (only sites built with a prerender adapter need it) | |
 | `prerender.routes` | string[] | yes, when `[prerender]` is present | — | literal absolute routes (no globs, query or fragment); read by the host's vite-prerender adapter, validated by the core |
+| `analytics` | table | no | absent (most sites state no analytics; absent behaves as `cloudflareWebAnalytics = false`, which never loosens the site's CSP) | |
+| `analytics.cloudflareWebAnalytics` | bool | yes, when `[analytics]` is present | — (a policy choice; never defaulted) | true: every `Content-Security-Policy` line of the site's `_headers` admits `https://static.cloudflareinsights.com` in `script-src` (and `script-src-elem` when set) and `'self'` plus `https://cloudflareinsights.com` in `connect-src`; a missing directive is created from its `default-src` fallback, so nothing else changes. Reported as the `headers.csp_extended` warning. false: the live audit fails (`index.live_beacon`) if Cloudflare injects the beacon anyway |
 
 ## Globs
 

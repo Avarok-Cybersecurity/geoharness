@@ -37,7 +37,7 @@ Error codes (stable; `SiteOutput.warnings` reuse the shape):
 | `robots.conflict` | The site's robots.txt has different rules for a configured token |
 | `headers.too_many_rules` | `_headers` would exceed 100 rules |
 
-Warning codes: `page.no_main` (selector matched nothing; `<body>` used), `page.jsonld_invalid`, `output.existing_kept` (site ships its own llms.txt or sitemap.xml; kept, not generated), `llms.section_empty`, `rewrite.mixed_layout`.
+Warning codes: `page.no_main` (selector matched nothing; `<body>` used), `page.jsonld_invalid`, `output.existing_kept` (site ships its own llms.txt or sitemap.xml; kept, not generated), `llms.section_empty`, `rewrite.mixed_layout`, `headers.csp_extended` (`analytics.cloudflareWebAnalytics = true` extended the site's CSP; `path` = `_headers`).
 
 ## 1. `parseConfig(toml: string): Result<SiteConfig>`
 
@@ -58,6 +58,7 @@ interface SiteConfig {
   env: string[];                                          // names {{env.NAME}} may read
   headers: { immutable: string[] /* path globs of hashed assets */ };
   prerender?: { routes: string[] };                       // literal routes the host's prerender adapter renders; core only validates
+  analytics?: { cloudflareWebAnalytics: boolean };        // explicit opt-in; extends the site's CSP for the beacon
 }
 interface BotPolicy { tokens: string[]; allow: string[]; disallow: string[]; group: 'search' | 'user' | 'training' | 'other' }
 ```
@@ -97,7 +98,7 @@ Rules the core enforces:
 - Twin = main content (`content.mainSelector`) converted with tables and fenced code preserved, YAML frontmatter `title, description, canonical, lastmod, tokens`, JSON-LD appended as a fenced `json` block.
 - Head injection only fills what the page lacks (never overrides an author's tag): canonical, `rel=alternate type=text/markdown`, `rel=describedby` → `/llms.txt`, OG/Twitter, minimal JSON-LD, `<meta name="build">`.
 - Templating: `{{geo.build_id}}`, `{{geo.lastmod}}`, `{{env.NAME}}` (declared names only; an undeclared name is an error, not an empty string).
-- `_headers`: the site's own block is preserved verbatim first; GeoHarness appends its block. Total rules ≤ 100 or error.
+- `_headers`: the site's own block comes first, then GeoHarness's block. Each URL pattern appears once: a GeoHarness rule whose pattern the site already uses is written inside that site rule between indented `# BEGIN GeoHarness`/`# END GeoHarness` lines (Cloudflare combines matching rules, so production sees the same headers, and `wrangler dev`, which keeps only the last rule per pattern, serves what production serves). The site's own lines are otherwise verbatim, except that `analytics.cloudflareWebAnalytics = true` extends its `Content-Security-Policy` values for the Web Analytics beacon (warning `headers.csp_extended`). Total rules ≤ 100 or error.
 - `rewriteRules`: three rules (directory, bare path, `.html`), each guarded by `http.host eq "<host>"` and `any(http.request.headers["accept"][*] contains "text/markdown")`. Descriptions start with `geoharness:<host>`. Directory: `ends_with(path, "/")` → `concat(path, "index.md")`. `.html`: `http.request.uri.path.extension eq "html"` → `wildcard_replace(path, "*.html", "${1}.md")`. Bare path: `not ends_with(path, "/") and http.request.uri.path.extension eq ""` → `concat(path, "/index.md")` when most pages are `x/index.html`, else `concat(path, ".md")` (a mixed site gets `rewrite.mixed_layout`). Requests with any other extension (assets, `.md` itself) never match.
 - `content.exclude` routes are passed through (templated only): no twin, no injection, not in llms/sitemap. Pages that are `noindex` or disallowed for `*` by the merged robots.txt get a twin but are left out of `llms.txt`, `llms-full.txt` and `sitemap.xml`.
 - `existing.llms` / `existing.sitemap`, when present, are kept as the site's own and not regenerated (`output.existing_kept` warning); `llms-full.txt` is always generated. robots.txt and `_headers` are merged.
@@ -116,7 +117,7 @@ interface AuditInput {
   robots: string; headers: string; llms?: string; sitemap: string;
   live?: LiveObservation[];            // present only for the post-deploy audit
 }
-interface LiveObservation { url: string; userAgent: string; accept: string; status: number; headers: Record<string, string>; bodyPrefix: string }
+interface LiveObservation { url: string; userAgent: string; accept: string; status: number; headers: Record<string, string>; bodyPrefix: string; bodySuffix: string } // first / last 8192 characters
 interface AuditReport {
   score: number;                       // 0–100, weighted
   categories: { id: string; title: string; weight: number; score: number }[];

@@ -1,7 +1,9 @@
 //! Pure core of `GeoHarness`. Every function takes values and returns values:
 //! no filesystem, network, clock, environment or process access (SBIO).
 
+pub mod analytics;
 pub mod config;
+pub mod csp;
 pub mod error;
 pub mod glob;
 pub mod headers;
