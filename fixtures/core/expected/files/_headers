@@ -1,0 +1,12 @@
+/assets/*
+  X-Site: kept
+
+# BEGIN GeoHarness
+/*
+  Vary: Accept
+  Content-Signal: search=yes, ai-input=yes, ai-train=no
+/*.md
+  Content-Type: text/markdown; charset=utf-8
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+# END GeoHarness

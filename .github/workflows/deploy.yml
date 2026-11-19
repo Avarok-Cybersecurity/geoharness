@@ -1,0 +1,84 @@
+name: deploy
+
+# Dogfood: GeoHarness builds, audits, gates and deploys its own site (site/) with the action in this
+# repository (the local action ./). Pull requests run the same pipeline with deploy: false — build, process, GEO
+# audit and Lighthouse — with no secrets, no Cloudflare API call and no zone change.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Never cancel a deploy half way: runs for main queue behind each other.
+    concurrency:
+      group: deploy-geo.avarok.net
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: GeoHarness (deploy)
+        id: geoharness
+        uses: ./
+        with:
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          site-path: site
+          adapter: command
+          build-command: node build.mjs
+          output-dir: dist
+          target: workers
+          project-name: geoharness-site
+          domains: geo.avarok.net
+          lighthouse: "true"
+          lighthouse-max-urls: "8"
+          geo-min-score: "90"
+          # Zone-wide settings that would change every site on avarok.net are left to the zone owner.
+          extra-optimizations: all -bot_fight_mode -ai_bots_protection -email_obfuscation -rocket_loader
+          deploy: "true"
+      - name: Result
+        env:
+          GEO_SCORE: ${{ steps.geoharness.outputs.geo-score }}
+          URL: ${{ steps.geoharness.outputs.url }}
+        run: echo "GEO score $GEO_SCORE at $URL"
+
+  dry-run:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: deploy-dry-run-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: GeoHarness (dry run, deploy false)
+        id: geoharness
+        uses: ./
+        with:
+          site-path: site
+          adapter: command
+          build-command: node build.mjs
+          output-dir: dist
+          target: workers
+          project-name: geoharness-site
+          domains: geo.avarok.net
+          lighthouse: "true"
+          lighthouse-max-urls: "8"
+          geo-min-score: "90"
+          extra-optimizations: all -bot_fight_mode -ai_bots_protection -email_obfuscation -rocket_loader
+          deploy: "false"
+      - name: Result
+        env:
+          GEO_SCORE: ${{ steps.geoharness.outputs.geo-score }}
+        run: echo "GEO score (build) $GEO_SCORE"

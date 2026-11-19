@@ -1,0 +1,1 @@
+{ "name": "fixture-tie", "private": true, "scripts": { "build": "make build" } }

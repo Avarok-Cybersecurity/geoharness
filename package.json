@@ -1,0 +1,36 @@
+{
+  "name": "geoharness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "GeoHarness host: builds any website, makes it agent-ready, gates, deploys to Cloudflare and verifies.",
+  "license": "MIT OR Apache-2.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "bin": {
+    "geoharness": "dist/cli.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint host edge scripts site/build.mjs",
+    "test": "vitest run --maxWorkers=4",
+    "bundle": "node host/build.mjs",
+    "check:dist": "node host/build.mjs --check",
+    "docs": "node scripts/docs/run.mjs",
+    "check:docs": "node scripts/docs/run.mjs --check",
+    "og": "node scripts/og.mjs",
+    "site": "node site/build.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "esbuild": "0.28.2",
+    "eslint": "10.15.0",
+    "playwright-core": "1.65.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.73.0",
+    "vitest": "5.1.1",
+    "yaml": "2.9.1"
+  }
+}

@@ -1,0 +1,7 @@
+// Fixture: a repo that already deploys its own Worker with static assets.
+{
+  "name": "fixture-worker", // the Worker
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./public", "binding": "ASSETS", },
+}

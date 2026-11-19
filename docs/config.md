@@ -1,0 +1,46 @@
+# `geoharness.toml`
+
+Parsed by `parseConfig` (contract §1). Keys are camelCase. **Unknown keys are errors** (`config.unknown_key`). A key is required unless this table lists a default, and every default has a reason. Validation reports every failure with its dotted key path, not just the first.
+
+| Key | Type | Required | Default (reason) | Validation |
+|---|---|---|---|---|
+| `site.origin` | string | yes | — | `https://host[:port]`, no path, query or trailing slash |
+| `site.name` | string | yes | — | non-empty, single line (it is the llms.txt H1) |
+| `site.language` | string | yes | — | BCP 47 tag (`en`, `en-US`) |
+| `identity.kind` | `"person"` \| `"organization"` | yes | — | |
+| `identity.name` | string | yes | — | non-empty, single line |
+| `identity.url` | string | yes | — | absolute http(s) URL |
+| `identity.sameAs` | string[] | no | `[]` (no profiles is a valid statement, not an assumption) | absolute http(s) URLs; injected as `rel=me` and JSON-LD `sameAs` |
+| `identity.organization` | table `{ name, url }` | no | absent (a person need not belong to one) | both keys required when present |
+| `contentSignal.search` | bool | yes | — (a policy choice; never defaulted) | |
+| `contentSignal.aiInput` | bool | yes | — | |
+| `contentSignal.aiTrain` | bool | yes | — | |
+| `bots` | array of tables | yes | — | at least one; a token may appear in only one policy (case-insensitive) |
+| `bots[].tokens` | string[] | yes | — | user-agent tokens, no whitespace or `:`; `*` allowed |
+| `bots[].group` | `"search"` \| `"user"` \| `"training"` \| `"other"` | yes | — | `search`/`user` tokens are checked by the audit's blocking robots check |
+| `bots[].allow` | string[] | no | `[]` (a group may be disallow-only) | each starts with `/` or `*` |
+| `bots[].disallow` | string[] | no | `[]` (a group may be allow-only) | each starts with `/` or `*` |
+| `content.mainSelector` | string | yes | — | valid CSS selector; when a page has no match its `<body>` is used with a `page.no_main` warning |
+| `content.exclude` | string[] | no | `[]` (excluding nothing changes nothing) | route globs starting with `/` |
+| `llms.summary` | string | yes | — | single line (the llms.txt blockquote) |
+| `llms.sections` | array of tables | yes | — | may be empty (`[]`) for an llms.txt with no sections |
+| `llms.sections[].title` | string | yes | — | single line (an H2) |
+| `llms.sections[].routes` | string[] | yes | — | route globs starting with `/` |
+| `env` | string[] | no | `[]` (no template may read the environment unless a name is declared) | `[A-Z_][A-Z0-9_]*`, unique |
+| `headers.immutable` | string[] | no | `[]` (no asset is assumed to be content-hashed) | Cloudflare `_headers` URL patterns starting with `/` |
+| `prerender` | table | no | absent (only sites built with a prerender adapter need it) | |
+| `prerender.routes` | string[] | yes, when `[prerender]` is present | — | literal absolute routes (no globs, query or fragment); read by the host's vite-prerender adapter, validated by the core |
+
+## Globs
+
+`content.exclude` and `llms.sections[].routes` are matched against page routes: `*` matches within one path segment, `**` across segments, everything else is literal (`/blog/**`, `/docs/*/`).
+
+`headers.immutable` entries are written verbatim as `_headers` URL patterns, so `*` there is Cloudflare's splat, which crosses `/`.
+
+## Templates
+
+Page HTML and adapter-supplied markdown may contain `{{geo.build_id}}`, `{{geo.lastmod}}` and `{{env.NAME}}` (whitespace inside the braces is allowed). `NAME` must be listed in `env`; reading an undeclared name is an error, never an empty string. Other `{{...}}` text is left untouched.
+
+## Example
+
+See [`fixtures/core/site/geoharness.toml`](../fixtures/core/site/geoharness.toml).

@@ -1,0 +1,219 @@
+{
+  "categories": [
+    {
+      "id": "access",
+      "title": "AI access",
+      "weight": 30.0
+    },
+    {
+      "id": "indexability",
+      "title": "Indexability",
+      "weight": 25.0
+    },
+    {
+      "id": "delivery",
+      "title": "Markdown delivery",
+      "weight": 25.0
+    },
+    {
+      "id": "extractability",
+      "title": "Extractability (advisory)",
+      "weight": 12.0
+    },
+    {
+      "id": "signals",
+      "title": "Optional signals (advisory)",
+      "weight": 8.0
+    }
+  ],
+  "checks": [
+    {
+      "category": "access",
+      "citations": [
+        "peec-how-deep-research-reads-2026",
+        "google-ai-guide-2026"
+      ],
+      "id": "access.spa_shell",
+      "severity": "blocking",
+      "title": "Page has server-rendered text"
+    },
+    {
+      "category": "access",
+      "citations": [
+        "openai-bots",
+        "anthropic-bots",
+        "perplexity-bots",
+        "google-ai-guide-2026"
+      ],
+      "id": "access.robots_bots",
+      "severity": "blocking",
+      "title": "robots.txt admits search and user agents"
+    },
+    {
+      "category": "access",
+      "citations": [
+        "cf-bot-fight-mode",
+        "openai-bots",
+        "anthropic-bots",
+        "perplexity-bots"
+      ],
+      "id": "access.live_ai_agents",
+      "severity": "blocking",
+      "title": "AI user agents get HTTP 200, not a challenge"
+    },
+    {
+      "category": "indexability",
+      "citations": [
+        "google-ai-guide-2026"
+      ],
+      "id": "index.title",
+      "severity": "blocking",
+      "title": "Page has a <title>"
+    },
+    {
+      "category": "indexability",
+      "citations": [
+        "google-ai-guide-2026"
+      ],
+      "id": "index.description",
+      "severity": "blocking",
+      "title": "Page has a meta description"
+    },
+    {
+      "category": "indexability",
+      "citations": [
+        "google-ai-guide-2026"
+      ],
+      "id": "index.canonical",
+      "severity": "blocking",
+      "title": "Page has a canonical link"
+    },
+    {
+      "category": "indexability",
+      "citations": [
+        "google-ai-guide-2026"
+      ],
+      "id": "index.broken_links",
+      "severity": "blocking",
+      "title": "Internal links resolve"
+    },
+    {
+      "category": "indexability",
+      "citations": [
+        "cf-workers-static-assets"
+      ],
+      "id": "index.live_build",
+      "severity": "blocking",
+      "title": "Live site serves this build"
+    },
+    {
+      "category": "delivery",
+      "citations": [
+        "google-spam-policies",
+        "llmstxt-spec",
+        "htmlrag-2025"
+      ],
+      "id": "delivery.twin",
+      "severity": "blocking",
+      "title": "Markdown twin exists and matches the page"
+    },
+    {
+      "category": "delivery",
+      "citations": [
+        "cf-markdown-for-agents",
+        "cf-transform-rules",
+        "checkly-2026"
+      ],
+      "id": "delivery.live_negotiation",
+      "severity": "blocking",
+      "title": "Accept: text/markdown gets markdown with Vary: Accept"
+    },
+    {
+      "category": "delivery",
+      "citations": [
+        "cf-content-signals",
+        "llmstxt-spec"
+      ],
+      "id": "delivery.live_files",
+      "severity": "blocking",
+      "title": "HTML pages, robots.txt, llms.txt and sitemap.xml are served correctly"
+    },
+    {
+      "category": "extractability",
+      "citations": [
+        "peec-reading-budget-2026"
+      ],
+      "id": "extract.link_count",
+      "severity": "advisory",
+      "title": "Few links (<20) so the first read covers the page"
+    },
+    {
+      "category": "extractability",
+      "citations": [
+        "peec-reading-budget-2026"
+      ],
+      "id": "extract.front_loaded",
+      "severity": "advisory",
+      "title": "Main content starts within the first ~5,700 characters"
+    },
+    {
+      "category": "extractability",
+      "citations": [
+        "indig-2026"
+      ],
+      "id": "extract.entity_early",
+      "severity": "advisory",
+      "title": "Entity named in the first 30% of the content"
+    },
+    {
+      "category": "extractability",
+      "citations": [
+        "what-gets-cited-2026",
+        "sageo-2026"
+      ],
+      "id": "extract.question_headings",
+      "severity": "advisory",
+      "title": "A heading is phrased as a question"
+    },
+    {
+      "category": "extractability",
+      "citations": [
+        "what-gets-cited-2026"
+      ],
+      "id": "extract.visible_date",
+      "severity": "advisory",
+      "title": "A date is visible in the content"
+    },
+    {
+      "category": "extractability",
+      "citations": [
+        "htmlrag-2025"
+      ],
+      "id": "extract.tables_kept",
+      "severity": "advisory",
+      "title": "Tables survive into the twin"
+    },
+    {
+      "category": "signals",
+      "citations": [
+        "llmstxt-spec",
+        "ahrefs-llmstxt-2026",
+        "seranking-llmstxt-2026"
+      ],
+      "id": "signals.llms_txt",
+      "severity": "advisory",
+      "title": "llms.txt is present and well-formed"
+    },
+    {
+      "category": "signals",
+      "citations": [
+        "ahrefs-schema-2026",
+        "google-ai-guide-2026"
+      ],
+      "id": "signals.json_ld",
+      "severity": "advisory",
+      "title": "JSON-LD is present and valid"
+    }
+  ],
+  "generatedBy": "cargo run -p xtask -- gen-checks (from crates/geoharness-audit/src/{catalog,weights}.rs)"
+}

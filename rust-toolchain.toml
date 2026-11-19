@@ -1,0 +1,7 @@
+# Pinned: dist/core/geoharness_wasm_bg.wasm is committed and CI rebuilds it byte for byte.
+# Bump together with a fresh `scripts/build-wasm.sh` run.
+[toolchain]
+channel = "1.98.0"
+profile = "minimal"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]

@@ -1,7 +1,7 @@
 # Citations
 
 Every claim GeoHarness relies on — in its design, its GEO score, and its documentation — is listed here.
-The README's **Citations** section is generated from this file (`npm run citations`), and CI fails if the two differ.
+The README's **Citations** section and the site's /citations/ page are generated from this file (`npm run docs`), and CI fails if they differ.
 
 **Evidence grades**
 

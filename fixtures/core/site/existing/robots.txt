@@ -1,0 +1,3 @@
+# The site's own rules
+User-agent: BadBot
+Disallow: /

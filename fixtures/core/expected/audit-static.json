@@ -1,0 +1,758 @@
+{
+  "score": 93.2,
+  "categories": [
+    {
+      "id": "access",
+      "title": "AI access",
+      "weight": 30.0,
+      "score": 100.0
+    },
+    {
+      "id": "indexability",
+      "title": "Indexability",
+      "weight": 25.0,
+      "score": 95.0
+    },
+    {
+      "id": "delivery",
+      "title": "Markdown delivery",
+      "weight": 25.0,
+      "score": 100.0
+    },
+    {
+      "id": "extractability",
+      "title": "Extractability (advisory)",
+      "weight": 12.0,
+      "score": 53.8
+    },
+    {
+      "id": "signals",
+      "title": "Optional signals (advisory)",
+      "weight": 8.0,
+      "score": 100.0
+    }
+  ],
+  "findings": [
+    {
+      "checkId": "access.robots_bots",
+      "title": "robots.txt admits search and user agents",
+      "severity": "blocking",
+      "passed": true,
+      "evidence": "every search and user agent may fetch /",
+      "citations": [
+        "openai-bots",
+        "anthropic-bots",
+        "perplexity-bots",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "signals.llms_txt",
+      "title": "llms.txt is present and well-formed",
+      "severity": "advisory",
+      "passed": true,
+      "evidence": "H1, blockquote summary and H2 link sections present",
+      "citations": [
+        "llmstxt-spec",
+        "ahrefs-llmstxt-2026",
+        "seranking-llmstxt-2026"
+      ]
+    },
+    {
+      "checkId": "access.spa_shell",
+      "title": "Page has server-rendered text",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/",
+      "evidence": "287 characters of visible text in the HTML (threshold 100)",
+      "citations": [
+        "peec-how-deep-research-reads-2026",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.title",
+      "title": "Page has a <title>",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/",
+      "evidence": "title: \"Example Docs\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.description",
+      "title": "Page has a meta description",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/",
+      "evidence": "meta description: \"Docs for Example, the widget toolkit.\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.canonical",
+      "title": "Page has a canonical link",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/",
+      "evidence": "canonical: \"https://example.com/\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.broken_links",
+      "title": "Internal links resolve",
+      "severity": "blocking",
+      "passed": false,
+      "route": "/",
+      "evidence": "no page at: /nope/",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "delivery.twin",
+      "title": "Markdown twin exists and matches the page",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/",
+      "evidence": "word overlap 1.00 with the main content (threshold 0.8)",
+      "citations": [
+        "google-spam-policies",
+        "llmstxt-spec",
+        "htmlrag-2025"
+      ]
+    },
+    {
+      "checkId": "extract.link_count",
+      "title": "Few links (<20) so the first read covers the page",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/",
+      "evidence": "5 links on the page",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.front_loaded",
+      "title": "Main content starts within the first ~5,700 characters",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/",
+      "evidence": "main content starts at character 11",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.entity_early",
+      "title": "Entity named in the first 30% of the content",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/",
+      "evidence": "\"Example Inc\" within the first 83 characters",
+      "citations": [
+        "indig-2026"
+      ]
+    },
+    {
+      "checkId": "extract.question_headings",
+      "title": "A heading is phrased as a question",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/",
+      "evidence": "no question-style h2–h6",
+      "citations": [
+        "what-gets-cited-2026",
+        "sageo-2026"
+      ]
+    },
+    {
+      "checkId": "extract.visible_date",
+      "title": "A date is visible in the content",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/",
+      "evidence": "no visible date",
+      "citations": [
+        "what-gets-cited-2026"
+      ]
+    },
+    {
+      "checkId": "signals.json_ld",
+      "title": "JSON-LD is present and valid",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/",
+      "evidence": "1 JSON-LD block(s), valid",
+      "citations": [
+        "ahrefs-schema-2026",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "access.spa_shell",
+      "title": "Page has server-rendered text",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "129 characters of visible text in the HTML (threshold 100)",
+      "citations": [
+        "peec-how-deep-research-reads-2026",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.title",
+      "title": "Page has a <title>",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "title: \"Guide | Example Docs\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.description",
+      "title": "Page has a meta description",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "meta description: \"Install and configure Example.\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.canonical",
+      "title": "Page has a canonical link",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "canonical: \"https://docs.example.org/guide/\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.broken_links",
+      "title": "Internal links resolve",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "every internal page link resolves",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "delivery.twin",
+      "title": "Markdown twin exists and matches the page",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "word overlap 1.00 with the main content (threshold 0.8)",
+      "citations": [
+        "google-spam-policies",
+        "llmstxt-spec",
+        "htmlrag-2025"
+      ]
+    },
+    {
+      "checkId": "extract.link_count",
+      "title": "Few links (<20) so the first read covers the page",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "1 links on the page",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.front_loaded",
+      "title": "Main content starts within the first ~5,700 characters",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "main content starts at character 0",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.entity_early",
+      "title": "Entity named in the first 30% of the content",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/guide/",
+      "evidence": "none of [\"Example Inc\", \"Example Docs\"] in the first 39 characters",
+      "citations": [
+        "indig-2026"
+      ]
+    },
+    {
+      "checkId": "extract.question_headings",
+      "title": "A heading is phrased as a question",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "\"How do I install it?\"",
+      "citations": [
+        "what-gets-cited-2026",
+        "sageo-2026"
+      ]
+    },
+    {
+      "checkId": "extract.visible_date",
+      "title": "A date is visible in the content",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "date found",
+      "citations": [
+        "what-gets-cited-2026"
+      ]
+    },
+    {
+      "checkId": "extract.tables_kept",
+      "title": "Tables survive into the twin",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "markdown table present",
+      "citations": [
+        "htmlrag-2025"
+      ]
+    },
+    {
+      "checkId": "signals.json_ld",
+      "title": "JSON-LD is present and valid",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "1 JSON-LD block(s), valid",
+      "citations": [
+        "ahrefs-schema-2026",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "access.spa_shell",
+      "title": "Page has server-rendered text",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "259 characters of visible text in the HTML (threshold 100)",
+      "citations": [
+        "peec-how-deep-research-reads-2026",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.title",
+      "title": "Page has a <title>",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "title: \"Advanced | Example Docs\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.description",
+      "title": "Page has a meta description",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "meta description: \"Advanced use of Example.\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.canonical",
+      "title": "Page has a canonical link",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "canonical: \"https://example.com/guide/advanced/\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.broken_links",
+      "title": "Internal links resolve",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "every internal page link resolves",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "delivery.twin",
+      "title": "Markdown twin exists and matches the page",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "word overlap 1.00 with the main content (threshold 0.8)",
+      "citations": [
+        "google-spam-policies",
+        "llmstxt-spec",
+        "htmlrag-2025"
+      ]
+    },
+    {
+      "checkId": "extract.link_count",
+      "title": "Few links (<20) so the first read covers the page",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "1 links on the page",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.front_loaded",
+      "title": "Main content starts within the first ~5,700 characters",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "main content starts at character 0",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.entity_early",
+      "title": "Entity named in the first 30% of the content",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/guide/advanced/",
+      "evidence": "none of [\"Example Inc\", \"Example Docs\"] in the first 78 characters",
+      "citations": [
+        "indig-2026"
+      ]
+    },
+    {
+      "checkId": "extract.question_headings",
+      "title": "A heading is phrased as a question",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/guide/advanced/",
+      "evidence": "no question-style h2–h6",
+      "citations": [
+        "what-gets-cited-2026",
+        "sageo-2026"
+      ]
+    },
+    {
+      "checkId": "extract.visible_date",
+      "title": "A date is visible in the content",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/guide/advanced/",
+      "evidence": "no visible date",
+      "citations": [
+        "what-gets-cited-2026"
+      ]
+    },
+    {
+      "checkId": "signals.json_ld",
+      "title": "JSON-LD is present and valid",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "1 JSON-LD block(s), valid",
+      "citations": [
+        "ahrefs-schema-2026",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "access.spa_shell",
+      "title": "Page has server-rendered text",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "224 characters of visible text in the HTML (threshold 100)",
+      "citations": [
+        "peec-how-deep-research-reads-2026",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.title",
+      "title": "Page has a <title>",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "title: \"Private | Example Docs\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.description",
+      "title": "Page has a meta description",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "meta description: \"Internal notes.\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.canonical",
+      "title": "Page has a canonical link",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "canonical: \"https://example.com/private/\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.broken_links",
+      "title": "Internal links resolve",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "every internal page link resolves",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "delivery.twin",
+      "title": "Markdown twin exists and matches the page",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "word overlap 1.00 with the main content (threshold 0.8)",
+      "citations": [
+        "google-spam-policies",
+        "llmstxt-spec",
+        "htmlrag-2025"
+      ]
+    },
+    {
+      "checkId": "extract.link_count",
+      "title": "Few links (<20) so the first read covers the page",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "0 links on the page",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.front_loaded",
+      "title": "Main content starts within the first ~5,700 characters",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "main content starts at character 0",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.entity_early",
+      "title": "Entity named in the first 30% of the content",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/private/",
+      "evidence": "none of [\"Example Inc\", \"Example Docs\"] in the first 68 characters",
+      "citations": [
+        "indig-2026"
+      ]
+    },
+    {
+      "checkId": "extract.question_headings",
+      "title": "A heading is phrased as a question",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/private/",
+      "evidence": "no question-style h2–h6",
+      "citations": [
+        "what-gets-cited-2026",
+        "sageo-2026"
+      ]
+    },
+    {
+      "checkId": "extract.visible_date",
+      "title": "A date is visible in the content",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/private/",
+      "evidence": "no visible date",
+      "citations": [
+        "what-gets-cited-2026"
+      ]
+    },
+    {
+      "checkId": "signals.json_ld",
+      "title": "JSON-LD is present and valid",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "1 JSON-LD block(s), valid",
+      "citations": [
+        "ahrefs-schema-2026",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "access.spa_shell",
+      "title": "Page has server-rendered text",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "241 characters of visible text in the HTML (threshold 100)",
+      "citations": [
+        "peec-how-deep-research-reads-2026",
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.title",
+      "title": "Page has a <title>",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "title: \"Pricing | Example Docs\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.description",
+      "title": "Page has a meta description",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "meta description: \"Example is free.\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.canonical",
+      "title": "Page has a canonical link",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "canonical: \"https://example.com/pricing/\"",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.broken_links",
+      "title": "Internal links resolve",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "every internal page link resolves",
+      "citations": [
+        "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "delivery.twin",
+      "title": "Markdown twin exists and matches the page",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "word overlap 1.00 with the main content (threshold 0.8)",
+      "citations": [
+        "google-spam-policies",
+        "llmstxt-spec",
+        "htmlrag-2025"
+      ]
+    },
+    {
+      "checkId": "extract.link_count",
+      "title": "Few links (<20) so the first read covers the page",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "0 links on the page",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.front_loaded",
+      "title": "Main content starts within the first ~5,700 characters",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "main content starts at character 0",
+      "citations": [
+        "peec-reading-budget-2026"
+      ]
+    },
+    {
+      "checkId": "extract.entity_early",
+      "title": "Entity named in the first 30% of the content",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/pricing/",
+      "evidence": "none of [\"Example Inc\", \"Example Docs\"] in the first 73 characters",
+      "citations": [
+        "indig-2026"
+      ]
+    },
+    {
+      "checkId": "extract.question_headings",
+      "title": "A heading is phrased as a question",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/pricing/",
+      "evidence": "no question-style h2–h6",
+      "citations": [
+        "what-gets-cited-2026",
+        "sageo-2026"
+      ]
+    },
+    {
+      "checkId": "extract.visible_date",
+      "title": "A date is visible in the content",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/pricing/",
+      "evidence": "no visible date",
+      "citations": [
+        "what-gets-cited-2026"
+      ]
+    },
+    {
+      "checkId": "signals.json_ld",
+      "title": "JSON-LD is present and valid",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "1 JSON-LD block(s), valid",
+      "citations": [
+        "ahrefs-schema-2026",
+        "google-ai-guide-2026"
+      ]
+    }
+  ]
+}

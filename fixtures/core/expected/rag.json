@@ -1,0 +1,109 @@
+{
+  "sidecar": {
+    "guide/advanced/index.md": {
+      "url": "https://example.com/guide/advanced/",
+      "title": "Advanced | Example Docs"
+    },
+    "guide/index.md": {
+      "url": "https://example.com/guide/",
+      "title": "Guide | Example Docs",
+      "lastmod": "2026-11-01T12:00:00Z"
+    },
+    "index.md": {
+      "url": "https://example.com/",
+      "title": "Example Docs",
+      "lastmod": "2026-11-10T09:00:00Z"
+    },
+    "pricing/index.md": {
+      "url": "https://example.com/pricing/",
+      "title": "Pricing | Example Docs",
+      "lastmod": "2026-10-05T08:30:00Z"
+    },
+    "private/index.md": {
+      "url": "https://example.com/private/",
+      "title": "Private | Example Docs"
+    }
+  },
+  "edges": [
+    {
+      "from": {
+        "path": "guide/index.md"
+      },
+      "to": {
+        "path": "index.md"
+      },
+      "relation": "child_of",
+      "weight": 1.0
+    },
+    {
+      "from": {
+        "path": "guide/advanced/index.md"
+      },
+      "to": {
+        "path": "guide/index.md"
+      },
+      "relation": "child_of",
+      "weight": 1.0
+    },
+    {
+      "from": {
+        "path": "private/index.md"
+      },
+      "to": {
+        "path": "index.md"
+      },
+      "relation": "child_of",
+      "weight": 1.0
+    },
+    {
+      "from": {
+        "path": "pricing/index.md"
+      },
+      "to": {
+        "path": "index.md"
+      },
+      "relation": "child_of",
+      "weight": 1.0
+    },
+    {
+      "from": {
+        "path": "index.md"
+      },
+      "to": {
+        "path": "guide/index.md"
+      },
+      "relation": "links_to",
+      "weight": 1.0
+    },
+    {
+      "from": {
+        "path": "index.md"
+      },
+      "to": {
+        "path": "pricing/index.md"
+      },
+      "relation": "links_to",
+      "weight": 1.0
+    },
+    {
+      "from": {
+        "path": "guide/index.md"
+      },
+      "to": {
+        "path": "guide/advanced/index.md"
+      },
+      "relation": "links_to",
+      "weight": 1.0
+    },
+    {
+      "from": {
+        "path": "guide/advanced/index.md"
+      },
+      "to": {
+        "path": "guide/index.md"
+      },
+      "relation": "links_to",
+      "weight": 1.0
+    }
+  ]
+}

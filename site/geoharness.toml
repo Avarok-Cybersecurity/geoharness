@@ -1,0 +1,53 @@
+# GeoHarness builds, audits and deploys its own site with this file (see .github/workflows/deploy.yml).
+
+[site]
+origin = "https://geo.avarok.net"
+name = "GeoHarness"
+language = "en"
+
+[identity]
+kind = "organization"
+name = "Avarok Cybersecurity"
+url = "https://avarok.net"
+sameAs = ["https://github.com/Avarok-Cybersecurity"]
+
+# An open-source tool's documentation is meant to be found, quoted and learned:
+# search, answers and training all help people use it correctly.
+[contentSignal]
+search = true
+aiInput = true
+aiTrain = true
+
+[[bots]]
+group = "search"
+tokens = ["Googlebot", "Bingbot", "OAI-SearchBot", "Claude-SearchBot", "PerplexityBot"]
+allow = ["/"]
+
+[[bots]]
+group = "user"
+tokens = ["ChatGPT-User", "Claude-User", "Perplexity-User"]
+allow = ["/"]
+
+[[bots]]
+group = "training"
+tokens = ["GPTBot", "ClaudeBot", "Google-Extended", "Applebot-Extended", "CCBot"]
+allow = ["/"]
+
+[[bots]]
+group = "other"
+tokens = ["*"]
+allow = ["/"]
+
+[content]
+mainSelector = "main"
+
+[llms]
+summary = "GeoHarness is a GitHub Action that builds any website, serves markdown twins to AI agents for free on Cloudflare, gates on a GEO score and Lighthouse 100, deploys and verifies the live site."
+
+[[llms.sections]]
+title = "Docs"
+routes = ["/docs/**"]
+
+[[llms.sections]]
+title = "Project"
+routes = ["/", "/citations/"]

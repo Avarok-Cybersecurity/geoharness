@@ -1,0 +1,197 @@
+[
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/markdown, text/html, */*",
+    "expect": {
+      "status": 200,
+      "contentType": "text/markdown",
+      "varyIncludes": "accept"
+    }
+  },
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "expect": {
+      "status": 200,
+      "contentType": "text/html",
+      "varyIncludes": "accept",
+      "bodyIncludes": "<meta name=\"build\" content=\"0123abcd\">"
+    }
+  },
+  {
+    "url": "https://example.com/guide/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/markdown, text/html, */*",
+    "expect": {
+      "status": 200,
+      "contentType": "text/markdown",
+      "varyIncludes": "accept"
+    }
+  },
+  {
+    "url": "https://example.com/guide/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "expect": {
+      "status": 200,
+      "contentType": "text/html",
+      "varyIncludes": "accept"
+    }
+  },
+  {
+    "url": "https://example.com/guide/advanced/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/markdown, text/html, */*",
+    "expect": {
+      "status": 200,
+      "contentType": "text/markdown",
+      "varyIncludes": "accept"
+    }
+  },
+  {
+    "url": "https://example.com/guide/advanced/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "expect": {
+      "status": 200,
+      "contentType": "text/html",
+      "varyIncludes": "accept"
+    }
+  },
+  {
+    "url": "https://example.com/pricing/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/markdown, text/html, */*",
+    "expect": {
+      "status": 200,
+      "contentType": "text/markdown",
+      "varyIncludes": "accept"
+    }
+  },
+  {
+    "url": "https://example.com/pricing/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "expect": {
+      "status": 200,
+      "contentType": "text/html",
+      "varyIncludes": "accept"
+    }
+  },
+  {
+    "url": "https://example.com/private/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/markdown, text/html, */*",
+    "expect": {
+      "status": 200,
+      "contentType": "text/markdown",
+      "varyIncludes": "accept"
+    }
+  },
+  {
+    "url": "https://example.com/private/",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "expect": {
+      "status": 200,
+      "contentType": "text/html",
+      "varyIncludes": "accept"
+    }
+  },
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html, */*",
+    "expect": {
+      "status": 200
+    }
+  },
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; OAI-SearchBot/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html, */*",
+    "expect": {
+      "status": 200
+    }
+  },
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ChatGPT-User/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html, */*",
+    "expect": {
+      "status": 200
+    }
+  },
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html, */*",
+    "expect": {
+      "status": 200
+    }
+  },
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html, */*",
+    "expect": {
+      "status": 200
+    }
+  },
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-SearchBot/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html, */*",
+    "expect": {
+      "status": 200
+    }
+  },
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html, */*",
+    "expect": {
+      "status": 200
+    }
+  },
+  {
+    "url": "https://example.com/",
+    "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Perplexity-User/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html, */*",
+    "expect": {
+      "status": 200
+    }
+  },
+  {
+    "url": "https://example.com/robots.txt",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "expect": {
+      "status": 200,
+      "contentType": "text/plain",
+      "bodyIncludes": "Content-Signal:"
+    }
+  },
+  {
+    "url": "https://example.com/llms.txt",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "expect": {
+      "status": 200,
+      "contentType": "text/plain",
+      "bodyIncludes": "# Example Docs"
+    }
+  },
+  {
+    "url": "https://example.com/sitemap.xml",
+    "userAgent": "Mozilla/5.0 (compatible; GeoHarness-LiveCheck/1.0; +https://github.com/Avarok-Cybersecurity/geoharness)",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "expect": {
+      "status": 200,
+      "contentType": "xml",
+      "bodyIncludes": "<urlset"
+    }
+  }
+]

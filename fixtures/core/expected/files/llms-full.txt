@@ -1,0 +1,165 @@
+# Example Docs
+
+> Example Docs explains how to install and use Example.
+
+<!-- geoharness:page https://example.com/index.md -->
+---
+title: "Example Docs"
+description: "Docs for Example, the widget toolkit."
+canonical: "https://example.com/"
+lastmod: "2026-11-10T09:00:00Z"
+tokens: 129
+---
+
+# Example Docs
+
+Example Inc builds Example, a toolkit for widgets. It runs in any browser and on the server, and these docs cover installing it, configuring it and the options most teams change first.
+
+- Install
+  - macOS
+  - Linux
+- Configure
+
+Read the [guide](https://example.com/guide/), see [pricing](https://example.com/pricing/), or the [old page](https://example.com/nope/).
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Example Docs",
+  "url": "https://example.com/"
+}
+```
+
+<!-- geoharness:page https://example.com/guide/index.md -->
+---
+title: "Guide | Example Docs"
+description: "Install and configure Example."
+canonical: "https://docs.example.org/guide/"
+lastmod: "2026-11-01T12:00:00Z"
+tokens: 196
+---
+
+# Guide
+
+Updated November 1, 2026.
+
+## How do I install it?
+
+```sh
+npm install example
+```
+
+## Options
+
+| Key   | Default |
+| ----- | ------- |
+| size  | 10      |
+| color | blue    |
+
+Next: [advanced](https://example.com/guide/advanced/).
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "author": {
+    "@type": "Organization",
+    "name": "Example Inc",
+    "sameAs": [
+      "https://github.com/example"
+    ],
+    "url": "https://example.com/"
+  },
+  "dateModified": "2026-11-01T12:00:00Z",
+  "description": "Install and configure Example.",
+  "inLanguage": "en-US",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Example Docs",
+    "url": "https://example.com/"
+  },
+  "name": "Guide | Example Docs",
+  "url": "https://docs.example.org/guide/"
+}
+```
+
+<!-- geoharness:page https://example.com/guide/advanced/index.md -->
+---
+title: "Advanced | Example Docs"
+description: "Advanced use of Example."
+canonical: "https://example.com/guide/advanced/"
+tokens: 200
+---
+
+# Advanced
+
+Built from 0123abcd by the docs team.
+
+Advanced users of Example can tune the widget cache, swap the renderer and plug in their own storage backend. Each of these is a single option in the configuration file described in the guide.
+
+Back to the [guide](https://example.com/guide/).
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "author": {
+    "@type": "Organization",
+    "name": "Example Inc",
+    "sameAs": [
+      "https://github.com/example"
+    ],
+    "url": "https://example.com/"
+  },
+  "description": "Advanced use of Example.",
+  "inLanguage": "en-US",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Example Docs",
+    "url": "https://example.com/"
+  },
+  "name": "Advanced | Example Docs",
+  "url": "https://example.com/guide/advanced/"
+}
+```
+
+<!-- geoharness:page https://example.com/pricing/index.md -->
+---
+title: "Pricing | Example Docs"
+description: "Example is free."
+canonical: "https://example.com/pricing/"
+lastmod: "2026-10-05T08:30:00Z"
+tokens: 194
+---
+
+# Pricing
+
+Example is free for everyone.
+
+There are no paid tiers, no usage limits and no account to create. Companies that want a support contract can talk to Example Inc, which answers within one business day and keeps the toolkit itself free.
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "author": {
+    "@type": "Organization",
+    "name": "Example Inc",
+    "sameAs": [
+      "https://github.com/example"
+    ],
+    "url": "https://example.com/"
+  },
+  "dateModified": "2026-10-05T08:30:00Z",
+  "description": "Example is free.",
+  "inLanguage": "en-US",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Example Docs",
+    "url": "https://example.com/"
+  },
+  "name": "Pricing | Example Docs",
+  "url": "https://example.com/pricing/"
+}
+```

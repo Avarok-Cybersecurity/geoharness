@@ -1,0 +1,13 @@
+# Example Docs
+
+> Example Docs explains how to install and use Example.
+
+## Docs
+
+- [Guide | Example Docs](https://example.com/guide/index.md): Install and configure Example.
+- [Advanced | Example Docs](https://example.com/guide/advanced/index.md): Advanced use of Example.
+
+## Company
+
+- [Example Docs](https://example.com/index.md): Docs for Example, the widget toolkit.
+- [Pricing | Example Docs](https://example.com/pricing/index.md): Example is free.

@@ -1,0 +1,1 @@
+{ "name": "fixture-worker-assets", "private": true, "scripts": { "build": "node build.mjs" } }

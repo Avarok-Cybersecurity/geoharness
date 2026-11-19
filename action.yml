@@ -1,0 +1,105 @@
+name: GeoHarness
+description: Build any website, make it agent-ready, gate on GEO score and Lighthouse 100, deploy to Cloudflare and verify it live.
+author: Avarok Cybersecurity
+branding:
+  icon: globe
+  color: orange
+
+# GitHub does not enforce `required` for composite actions; geoharness validates every input in preflight
+# and fails listing all problems at once. Inputs reach the CLI as environment variables, never interpolated
+# into the script, so no input can inject shell.
+inputs:
+  cloudflare-api-token:
+    description: Cloudflare API token. Permission groups per feature are listed in cloudflare-permissions.json. Required when deploy is true.
+    required: false
+  cloudflare-account-id:
+    description: Cloudflare account ID (32 hex characters). Required when deploy is true.
+    required: false
+  site-path:
+    description: Directory of the site inside the repository; it must contain geoharness.toml.
+    required: true
+  adapter:
+    description: "Build adapter: auto (detect), static, command, npm, sveltekit-static, python, make, vite-prerender, worker-assets."
+    required: false
+    default: auto
+  build-command:
+    description: Build command, run without a shell (quotes group words; pipes, redirects, ; & $ are rejected — use a script).
+    required: false
+  output-dir:
+    description: Build output directory relative to site-path. Required by static, command, python and make.
+    required: false
+  target:
+    description: "Deploy target: workers (assets-only Worker on Custom Domains) or pages."
+    required: false
+    default: workers
+  project-name:
+    description: Worker or Pages project name (lower-case letters, digits, hyphens).
+    required: true
+  domains:
+    description: Newline-separated host names to serve the site on. The host of site.origin in geoharness.toml must be one of them.
+    required: true
+  lighthouse:
+    description: "Run the Lighthouse gate (100 in all four categories, median of 3 runs). false skips it."
+    required: false
+    default: "true"
+  lighthouse-max-urls:
+    description: How many URLs from the generated sitemap Lighthouse audits. Required when lighthouse is true.
+    required: false
+  geo-min-score:
+    description: Minimum GEO score (0–100) for the build audit and the live audit.
+    required: true
+  extra-optimizations:
+    description: >-
+      Free zone optimizations, as tokens applied left to right: all, none, <id>, -<id>. Ids: email_obfuscation,
+      rocket_loader, early_hints, http3, brotli, smart_tiered_cache, zstd, bot_fight_mode, ai_bots_protection.
+      Example: "all -rocket_loader".
+    required: false
+    default: all
+  deploy:
+    description: "true deploys, configures the zone, verifies live and pings IndexNow. false is a dry run for pull requests: build, process, GEO audit and Lighthouse only, with no Cloudflare API call."
+    required: false
+    default: "true"
+  rag:
+    description: Coming in v1.1 (RAG index export). Not implemented yet; setting it to true fails the run.
+    required: false
+    default: "false"
+
+outputs:
+  geo-score:
+    description: GEO score of the live site (the build audit's when the run stopped before verify).
+    value: ${{ steps.geoharness.outputs.geo-score }}
+  url:
+    description: The deployed URL.
+    value: ${{ steps.geoharness.outputs.url }}
+  markdown-count:
+    description: Number of markdown twins generated.
+    value: ${{ steps.geoharness.outputs.markdown-count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: "24"
+    - name: GeoHarness
+      id: geoharness
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/dist/cli.mjs" run
+      env:
+        GEOHARNESS_STATE_DIR: ${{ runner.temp }}/geoharness
+        INPUT_CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        INPUT_CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        INPUT_SITE_PATH: ${{ inputs.site-path }}
+        INPUT_ADAPTER: ${{ inputs.adapter }}
+        INPUT_BUILD_COMMAND: ${{ inputs.build-command }}
+        INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_PROJECT_NAME: ${{ inputs.project-name }}
+        INPUT_DOMAINS: ${{ inputs.domains }}
+        INPUT_LIGHTHOUSE: ${{ inputs.lighthouse }}
+        INPUT_LIGHTHOUSE_MAX_URLS: ${{ inputs.lighthouse-max-urls }}
+        INPUT_GEO_MIN_SCORE: ${{ inputs.geo-min-score }}
+        INPUT_EXTRA_OPTIMIZATIONS: ${{ inputs.extra-optimizations }}
+        INPUT_DEPLOY: ${{ inputs.deploy }}
+        INPUT_RAG: ${{ inputs.rag }}

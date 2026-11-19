@@ -1,0 +1,23 @@
+[package]
+name = "geoharness-wasm"
+description = "wasm-bindgen exports of the GeoHarness core (plain JS objects in, Result objects out)."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+geoharness-core.workspace = true
+geoharness-audit.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true
+serde_path_to_error.workspace = true
+serde-wasm-bindgen.workspace = true
+
+[lints]
+workspace = true
