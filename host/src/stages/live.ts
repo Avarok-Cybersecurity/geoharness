@@ -2,13 +2,15 @@ import type { LiveObservation, LiveRequest } from '../core/types-index.js';
 import type { HostIO, HttpResponse } from '../io/types.js';
 import { describeError } from '../lib/errors.js';
 import { buildMetaContent } from '../lib/gate.js';
+import { BODY_PREFIX_CHARS } from '../core/types.js';
 
 export const LIVE_TIMEOUT_MS = 20_000;
 /**
  * How much of each body's start and end the core sees: enough for frontmatter, head metadata and the first
- * window of text, and for scripts the edge injects before </body>.
+ * window of text, and for scripts the edge injects before </body>. The core owns the number (its static audit
+ * checks that every page's build meta falls inside it); this is the generated copy.
  */
-export const BODY_PREFIX_CHARS = 8192;
+export { BODY_PREFIX_CHARS } from '../core/types.js';
 /**
  * A live request that throws (a reset or refused connection, a timeout; not an HTTP status) is tried this many
  * times in all, LIVE_RETRY_DELAY_MS apart. A runner's network blips: one reset on one of the plan's requests

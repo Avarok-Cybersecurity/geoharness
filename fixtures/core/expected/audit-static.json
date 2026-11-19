@@ -1,5 +1,5 @@
 {
-  "score": 93.3,
+  "score": 93.5,
   "categories": [
     {
       "id": "access",
@@ -11,7 +11,7 @@
       "id": "indexability",
       "title": "Indexability",
       "weight": 25.0,
-      "score": 95.2
+      "score": 96.2
     },
     {
       "id": "delivery",
@@ -112,6 +112,17 @@
       "evidence": "canonical: \"https://example.com/\"",
       "citations": [
         "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.build_meta_early",
+      "title": "Build meta sits where the live check reads",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/",
+      "evidence": "build meta ends at character 100; the live check reads the first 8192",
+      "citations": [
+        "cf-workers-static-assets"
       ]
     },
     {
@@ -249,6 +260,17 @@
       "evidence": "canonical: \"https://docs.example.org/guide/\"",
       "citations": [
         "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.build_meta_early",
+      "title": "Build meta sits where the live check reads",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "build meta ends at character 100; the live check reads the first 8192",
+      "citations": [
+        "cf-workers-static-assets"
       ]
     },
     {
@@ -400,6 +422,17 @@
       ]
     },
     {
+      "checkId": "index.build_meta_early",
+      "title": "Build meta sits where the live check reads",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "build meta ends at character 100; the live check reads the first 8192",
+      "citations": [
+        "cf-workers-static-assets"
+      ]
+    },
+    {
       "checkId": "index.broken_links",
       "title": "Internal links resolve",
       "severity": "blocking",
@@ -537,6 +570,17 @@
       ]
     },
     {
+      "checkId": "index.build_meta_early",
+      "title": "Build meta sits where the live check reads",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "build meta ends at character 100; the live check reads the first 8192",
+      "citations": [
+        "cf-workers-static-assets"
+      ]
+    },
+    {
       "checkId": "index.broken_links",
       "title": "Internal links resolve",
       "severity": "blocking",
@@ -671,6 +715,17 @@
       "evidence": "canonical: \"https://example.com/pricing/\"",
       "citations": [
         "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "index.build_meta_early",
+      "title": "Build meta sits where the live check reads",
+      "severity": "blocking",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "build meta ends at character 100; the live check reads the first 8192",
+      "citations": [
+        "cf-workers-static-assets"
       ]
     },
     {

@@ -37,6 +37,7 @@ pub fn audit(input: &AuditInput) -> Result<AuditReport, Vec<CoreError>> {
     for p in &pages {
         scored.push(checks::access::spa_shell(p));
         scored.extend(checks::index::head(p));
+        scored.push(checks::index::build_meta_early(p, &input.build_id));
         scored.push(checks::index::broken_links(p, &config.site.origin, &routes));
         scored.push(checks::index::twin(p, selector));
         scored.extend(checks::advisory::page(p, selector, &entities));

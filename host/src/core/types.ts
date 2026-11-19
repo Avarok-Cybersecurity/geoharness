@@ -174,3 +174,6 @@ export type Edge = { from: EdgeEnd, to: EdgeEnd, relation: Relation, weight: num
 export type EdgeEnd = { path: string, };
 
 export type Relation = "child_of" | "links_to";
+
+/** UTF-16 code units of each live body's start and end the host keeps for the core (core: live::BODY_PREFIX_CHARS). */
+export const BODY_PREFIX_CHARS = 8192;

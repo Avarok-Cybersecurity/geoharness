@@ -189,3 +189,49 @@ fn config_less_live_audit_passes_healthy_and_fails_refused_bots() {
     input.origin = "https://example.com/path".into();
     assert!(audit_live(&input).is_err());
 }
+
+#[test]
+fn build_meta_within_the_live_window_passes() {
+    all_pass(&run(&static_input()), "index.build_meta_early");
+}
+
+/// A site that writes its own build meta late in a big `<head>`: the live
+/// check reads only the first BODY_PREFIX_CHARS, so it fails after deploy.
+#[test]
+fn build_meta_past_the_live_window_fails_before_deploy() {
+    use geoharness_core::live::{BODY_PREFIX_CHARS, build_meta};
+    let mut input = static_input();
+    let meta = build_meta(&input.build_id);
+    let html = input.pages[1].html.replace(&meta, "");
+    let padding = format!("<style>{}</style>", "a".repeat(BODY_PREFIX_CHARS));
+    input.pages[1].html = html.replacen("</head>", &format!("{padding}{meta}</head>"), 1);
+    let r = run(&input);
+    fails(&r, "index.build_meta_early", Some("/guide/"));
+    let f = support::findings(&r, "index.build_meta_early");
+    assert!(f.iter().filter(|x| !x.passed).all(|x| x.evidence.contains("8192")), "{f:#?}");
+}
+
+/// Measured in UTF-16 code units, as the host slices the body (`String.slice`).
+#[test]
+fn build_meta_window_counts_utf16_units_not_bytes() {
+    use geoharness_core::live::{BODY_PREFIX_CHARS, build_meta};
+    let mut input = static_input();
+    let meta = build_meta(&input.build_id);
+    let html = input.pages[1].html.replace(&meta, "");
+    let head_end = html.find("</head>").unwrap_or_else(|| panic!("no </head>"));
+    let before = html[..head_end].encode_utf16().count() + "<style></style>".len() + meta.len();
+    // 'é' is 2 bytes but 1 UTF-16 unit: the page fits by units, and would not by bytes.
+    let pad = "é".repeat(BODY_PREFIX_CHARS - before);
+    input.pages[1].html = html.replacen("</head>", &format!("<style>{pad}</style>{meta}</head>"), 1);
+    all_pass(&run(&input), "index.build_meta_early");
+}
+
+#[test]
+fn a_build_meta_in_another_form_fails_because_the_live_check_matches_it_exactly() {
+    use geoharness_core::live::build_meta;
+    let mut input = static_input();
+    let meta = build_meta(&input.build_id);
+    let own = format!("<meta content=\"{}\" name=\"build\" />", input.build_id);
+    input.pages[1].html = input.pages[1].html.replace(&meta, &own);
+    fails(&run(&input), "index.build_meta_early", Some("/guide/"));
+}

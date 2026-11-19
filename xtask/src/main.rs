@@ -76,6 +76,11 @@ fn render() -> String {
         out.push_str(d.trim());
         out.push('\n');
     }
+    out.push_str(&format!(
+        "\n/** UTF-16 code units of each live body's start and end the host keeps for the core (core: live::BODY_PREFIX_CHARS). */\n\
+         export const BODY_PREFIX_CHARS = {};\n",
+        geoharness_core::live::BODY_PREFIX_CHARS
+    ));
     out
 }
 
