@@ -1,11 +1,9 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import type { Log, Proc, ProcOptions, ProcResult, Running, StartOptions } from '../types.js';
 
-export function redactAll(text: string, secrets: readonly string[]): string {
-  let out = text;
-  for (const s of secrets) if (s.length > 0) out = out.split(s).join('***');
-  return out;
-}
+import { redactAll } from '../../lib/redact.js';
+
+export { redactAll };
 
 /** Grace between SIGTERM and SIGKILL when stopping a started process tree. */
 export const STOP_GRACE_MS = 5000;

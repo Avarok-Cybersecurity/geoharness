@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProcResult } from '../src/io/types.js';
 import { runAll } from '../src/stages/index.js';
 import { SHA } from './helpers/context.js';
-import { CF_WITH_VERSION, currentCf, harness, HOST, wranglerCalls, type Harness } from './helpers/harness.js';
+import { CF_WITH_VERSION, currentCf, harness, HOST, wranglerCalls, ZONE, type Harness } from './helpers/harness.js';
 import type { ProcCall } from './helpers/world.js';
 
 const LHCI = '--package=@lhci/cli@0.16.1';
@@ -109,7 +109,7 @@ describe('post-deploy Lighthouse gate and rollback', () => {
   });
 
   it('a Pages → Workers migration\'s first run does not "roll back" to the Worker\'s earlier failed upload', async () => {
-    const cfState = { zones: [CF_WITH_VERSION.zones[0]], workerDomains: [], workerDeployments: CF_WITH_VERSION.workerDeployments };
+    const cfState = { zones: [ZONE], workerDomains: [], workerDeployments: CF_WITH_VERSION.workerDeployments };
     const h = await harness({ cfState, inputs: { lighthouse: true, lighthouseMaxUrls: 1 }, onProc: liveFails });
     await expect(runAll(h.ctx)).rejects.toThrow(/NOT rolled back: no prior production version on Worker geo-site/);
     expect(wranglerCalls(h).some((c) => c.args.includes('rollback'))).toBe(false);
