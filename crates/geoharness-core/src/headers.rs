@@ -68,13 +68,30 @@ fn strip_block(headers: &str) -> String {
     out
 }
 
-/// The `GeoHarness` rules: `(URL pattern, header lines without indentation)`.
-fn rules(config: &SiteConfig) -> Vec<(String, Vec<String>)> {
+/// One `_headers` rule `GeoHarness` writes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Rule {
+    pub pattern: String,
+    /// Header lines without indentation.
+    pub headers: Vec<String>,
+}
+
+impl Rule {
+    pub fn new(pattern: impl Into<String>, headers: Vec<String>) -> Self {
+        Self {
+            pattern: pattern.into(),
+            headers,
+        }
+    }
+}
+
+/// The site-wide `GeoHarness` rules.
+fn rules(config: &SiteConfig) -> Vec<Rule> {
     // Every HTML URL can also answer with markdown (Accept negotiation), so
     // every response must vary on Accept for downstream caches.
     let mut out = vec![
-        (
-            "/*".to_owned(),
+        Rule::new(
+            "/*",
             vec![
                 "Vary: Accept".to_owned(),
                 format!(
@@ -83,13 +100,13 @@ fn rules(config: &SiteConfig) -> Vec<(String, Vec<String>)> {
                 ),
             ],
         ),
-        (
-            "/*.md".to_owned(),
+        Rule::new(
+            "/*.md",
             vec!["Content-Type: text/markdown; charset=utf-8".to_owned()],
         ),
     ];
     for pattern in &config.headers.immutable {
-        out.push((
+        out.push(Rule::new(
             pattern.clone(),
             vec!["Cache-Control: public, max-age=31536000, immutable".to_owned()],
         ));
@@ -117,16 +134,15 @@ fn merge_into(lines: &mut Vec<String>, pattern: &str, headers: &[String]) -> boo
     true
 }
 
-/// Merges the `GeoHarness` rules into `site` (already free of a previous
-/// `GeoHarness` block).
-fn merge_site(site: &str, config: &SiteConfig) -> String {
+/// Merges `rules` into `site` (already free of a previous `GeoHarness` block).
+fn merge_site(site: &str, rules: &[Rule]) -> String {
     let mut lines: Vec<String> = site.trim_end().lines().map(str::to_owned).collect();
     let mut block = String::new();
-    for (pattern, headers) in rules(config) {
-        if !merge_into(&mut lines, &pattern, &headers) {
-            block.push_str(&pattern);
+    for rule in rules {
+        if !merge_into(&mut lines, &rule.pattern, &rule.headers) {
+            block.push_str(&rule.pattern);
             block.push('\n');
-            for h in headers {
+            for h in &rule.headers {
                 block.push_str(&format!("  {h}\n"));
             }
         }
@@ -142,15 +158,38 @@ fn merge_site(site: &str, config: &SiteConfig) -> String {
     out
 }
 
+/// A merged `_headers` file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Merged {
+    pub text: String,
+    /// The optional rules (`optional` of [`merge_with`]) left out because the
+    /// file would otherwise exceed [`MAX_RULES`]; 0 when all were written.
+    pub skipped: usize,
+}
+
 /// Merges the `GeoHarness` rules with `existing`; `edit_site` may change the
 /// site's own text first (the one sanctioned edit: the opt-in CSP extension).
+/// `optional` rules (the per-page `Link` headers, which are advisory) are
+/// written only when all of them fit: a site with some pages declared and
+/// others silently not would be harder to reason about than one with none
+/// (and a warning). The required rules over the limit are an error.
 pub fn merge_with(
     existing: Option<&str>,
     config: &SiteConfig,
+    optional: &[Rule],
     edit_site: impl FnOnce(String) -> String,
-) -> Result<String, Error> {
+) -> Result<Merged, Error> {
     let site = edit_site(strip_block(existing.unwrap_or("")));
-    let out = merge_site(&site, config);
+    let required = rules(config);
+    let all: Vec<Rule> = required.iter().chain(optional).cloned().collect();
+    let out = merge_site(&site, &all);
+    if count_rules(&out) <= MAX_RULES {
+        return Ok(Merged {
+            text: out,
+            skipped: 0,
+        });
+    }
+    let out = merge_site(&site, &required);
     let rules = count_rules(&out);
     if rules > MAX_RULES {
         return Err(Error::HeadersTooManyRules(format!(
@@ -159,10 +198,14 @@ pub fn merge_with(
             rules - count_rules(&site)
         )));
     }
-    Ok(out)
+    Ok(Merged {
+        text: out,
+        skipped: optional.len(),
+    })
 }
 
-/// Merges the `GeoHarness` rules with `existing`, leaving the site's text as is.
+/// Merges the `GeoHarness` site-wide rules with `existing`, leaving the
+/// site's text as is.
 pub fn merge(existing: Option<&str>, config: &SiteConfig) -> Result<String, Error> {
-    merge_with(existing, config, |s| s)
+    merge_with(existing, config, &[], |s| s).map(|m| m.text)
 }

@@ -131,6 +131,21 @@ impl Page {
     pub fn all_links(&self) -> Vec<String> {
         all_attrs(&self.doc, "a[href]", "href")
     }
+
+    /// Every `<a href>` in the document as `(href, visible text)`, in order.
+    pub fn anchors(&self) -> Vec<(String, String)> {
+        sel("a[href]").map_or_else(Vec::new, |s| {
+            self.doc
+                .select(&s)
+                .map(|e| {
+                    (
+                        e.attr("href").unwrap_or("").trim().to_owned(),
+                        visible_text(e),
+                    )
+                })
+                .collect()
+        })
+    }
 }
 
 impl MainContent<'_> {

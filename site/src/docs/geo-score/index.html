@@ -47,7 +47,7 @@
 <tr><td>Indexability</td><td><code>indexability</code></td><td class="num">25</td></tr>
 <tr><td>Markdown delivery</td><td><code>delivery</code></td><td class="num">25</td></tr>
 <tr><td>Extractability (advisory)</td><td><code>extractability</code></td><td class="num">12</td></tr>
-<tr><td>Optional signals (advisory)</td><td><code>signals</code></td><td class="num">8</td></tr>
+<tr><td>Signals (advisory)</td><td><code>signals</code></td><td class="num">8</td></tr>
 </tbody></table></div>
 <!-- /generated:categories -->
 
@@ -78,8 +78,15 @@
 <tr><td><code>extract.question_headings</code></td><td>A heading is phrased as a question</td><td>extractability</td><td>advisory</td><td>A, B (preprint)</td><td><code>what-gets-cited-2026</code>, <code>sageo-2026</code></td></tr>
 <tr><td><code>extract.visible_date</code></td><td>A date is visible in the content</td><td>extractability</td><td>advisory</td><td>B (preprint)</td><td><code>what-gets-cited-2026</code></td></tr>
 <tr><td><code>extract.tables_kept</code></td><td>Tables survive into the twin</td><td>extractability</td><td>advisory</td><td>A</td><td><code>htmlrag-2025</code></td></tr>
+<tr><td><code>extract.quotable_sections</code></td><td>Sections are quotable: two or more 10–25-word sentences, or a list</td><td>extractability</td><td>advisory</td><td>D</td><td><code>geo-new</code></td></tr>
 <tr><td><code>signals.llms_txt</code></td><td>llms.txt is present and well-formed</td><td>signals</td><td>advisory</td><td>A (spec), B</td><td><code>llmstxt-spec</code>, <code>ahrefs-llmstxt-2026</code>, <code>seranking-llmstxt-2026</code></td></tr>
 <tr><td><code>signals.json_ld</code></td><td>JSON-LD is present and valid</td><td>signals</td><td>advisory</td><td>A, B</td><td><code>ahrefs-schema-2026</code>, <code>google-ai-guide-2026</code></td></tr>
+<tr><td><code>signals.description_length</code></td><td>Meta description fits a search snippet (≤160 characters)</td><td>signals</td><td>advisory</td><td>A, D</td><td><code>google-snippet</code>, <code>geo-new</code></td></tr>
+<tr><td><code>signals.entity_node</code></td><td>Home page JSON-LD has an Organization or Person node with sameAs</td><td>signals</td><td>advisory</td><td>A, B</td><td><code>google-organization</code>, <code>ahrefs-schema-2026</code></td></tr>
+<tr><td><code>signals.website_node</code></td><td>Home page JSON-LD has a WebSite node</td><td>signals</td><td>advisory</td><td>A, B</td><td><code>google-site-names</code>, <code>ahrefs-schema-2026</code></td></tr>
+<tr><td><code>signals.contact</code></td><td>Home page declares a contact (JSON-LD email or contactPoint, or a mailto:, tel: or contact link)</td><td>signals</td><td>advisory</td><td>A, D</td><td><code>google-organization</code>, <code>geo-new</code></td></tr>
+<tr><td><code>signals.trust_links</code></td><td>Home page links to an about page, a contact and a privacy policy</td><td>signals</td><td>advisory</td><td>A, D</td><td><code>google-helpful-content</code>, <code>geo-new</code></td></tr>
+<tr><td><code>signals.live_link_header</code></td><td>HTTP Link header names the markdown twin (pages) or the canonical page (twins)</td><td>signals</td><td>advisory</td><td>A, A (spec)</td><td><code>rfc-8288</code>, <code>llmstxt-spec</code>, <code>google-canonical-header</code></td></tr>
 </tbody></table></div>
 <!-- /generated:checks -->
 
@@ -97,7 +104,8 @@
 </div></main>
 <!-- generated:footer -->
 <footer class="site"><div class="wrap">
-<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net">Avarok Cybersecurity</a>.</p>
+<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net/about/">Avarok Cybersecurity</a>.
+ <a href="mailto:contact@avarok.net">Contact</a> · <a href="https://avarok.net/privacy/">Privacy notice</a> · <a href="https://github.com/Avarok-Cybersecurity/geoharness/security/policy">Security policy</a></p>
 <p>This site is built, audited and deployed by GeoHarness itself. Agents: send <code>Accept: text/markdown</code>, or read <a href="/llms.txt">llms.txt</a>.</p>
 </div></footer>
 <!-- /generated:footer -->

@@ -1,6 +1,7 @@
 //! `processSite` (contract §2): orchestrates every page and site file.
 
 mod check;
+mod headers_out;
 pub mod jsonld;
 mod lastmod;
 mod page;
@@ -9,7 +10,7 @@ use crate::error::{CoreError, Error, warn, warning};
 use crate::llms::{LlmsPage, llms_full_txt, llms_txt};
 use crate::template::{TemplateContext, render};
 use crate::types::{OutFile, SiteInput, SiteOutput};
-use crate::{analytics, config, glob, headers, indexnow, rewrite, robots, sitemap, twin};
+use crate::{config, glob, indexnow, rewrite, robots, sitemap, twin};
 
 /// Runs the whole pipeline; returns every error found, not just the first.
 pub fn process_site(input: &SiteInput) -> Result<SiteOutput, Vec<CoreError>> {
@@ -55,7 +56,7 @@ pub fn process_site(input: &SiteInput) -> Result<SiteOutput, Vec<CoreError>> {
     warnings.extend(lastmod::missing_warning(&undated));
     let robots_txt =
         robots::merge(input.existing.robots.as_deref(), config).map_err(|e| e.at("robots.txt"));
-    let headers_txt = merged_headers(input, &mut warnings);
+    let headers_txt = headers_out::merged(input, &processed, &mut warnings);
     let (robots_txt, headers_txt) = match (robots_txt, headers_txt) {
         (Ok(r), Ok(h)) if errors.is_empty() => (r, h),
         (r, h) => {
@@ -136,34 +137,6 @@ fn templated(
         lastmod,
         ..page.clone()
     })
-}
-
-/// `_headers`, with the site's CSP extended for the beacon on explicit opt-in.
-fn merged_headers(input: &SiteInput, warnings: &mut Vec<CoreError>) -> Result<String, CoreError> {
-    let config = &input.config;
-    let mut extended = Vec::new();
-    let merged = headers::merge_with(input.existing.headers.as_deref(), config, |site| {
-        if !config.cloudflare_web_analytics() {
-            return site;
-        }
-        let (text, patterns) = analytics::extend_site_headers(&site);
-        extended = patterns;
-        text
-    })
-    .map_err(|e| e.at("_headers"))?;
-    if !extended.is_empty() {
-        warnings.push(warn(
-            warning::CSP_EXTENDED,
-            format!(
-                "analytics.cloudflareWebAnalytics = true: the site's Content-Security-Policy for {} now admits {} (script-src) and 'self' plus {} (connect-src)",
-                extended.join(", "),
-                analytics::BEACON_SCRIPT_SOURCE,
-                analytics::BEACON_REPORT_SOURCE
-            ),
-            Some("_headers".to_owned()),
-        ));
-    }
-    Ok(merged)
 }
 
 fn host_without_port(host: &str) -> &str {

@@ -49,7 +49,8 @@ export function header() {
 export function footer() {
   return [
     '<footer class="site"><div class="wrap">',
-    '<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net">Avarok Cybersecurity</a>.</p>',
+    '<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net/about/">Avarok Cybersecurity</a>.',
+    ` <a href="mailto:contact@avarok.net">Contact</a> · <a href="https://avarok.net/privacy/">Privacy notice</a> · <a href="${REPO_URL}/security/policy">Security policy</a></p>`,
     '<p>This site is built, audited and deployed by GeoHarness itself. Agents: send <code>Accept: text/markdown</code>, or read <a href="/llms.txt">llms.txt</a>.</p>',
     '</div></footer>',
   ].join('\n');

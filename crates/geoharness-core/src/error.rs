@@ -92,6 +92,7 @@ pub mod warning {
     pub const MIXED_LAYOUT: &str = "rewrite.mixed_layout";
     pub const CSP_EXTENDED: &str = "headers.csp_extended";
     pub const NO_LASTMOD: &str = "page.no_lastmod";
+    pub const LINK_SKIPPED: &str = "headers.link_skipped";
 }
 
 /// Builds a warning `CoreError`.

@@ -2,7 +2,9 @@
 
 pub mod access;
 pub mod advisory;
+pub mod content;
 pub mod csp;
+pub mod entity;
 pub mod index;
 pub mod live;
 

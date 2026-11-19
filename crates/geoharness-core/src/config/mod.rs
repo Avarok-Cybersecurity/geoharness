@@ -83,6 +83,16 @@ pub struct Identity {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub organization: Option<Organization>,
+    /// Absolute URL of the entity's logo (JSON-LD `logo`); absent: no logo
+    /// is declared, none is guessed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub logo: Option<String>,
+    /// Public contact address (JSON-LD `email`); absent: no contact is
+    /// declared, none is guessed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub email: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

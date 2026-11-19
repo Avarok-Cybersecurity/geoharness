@@ -3,9 +3,12 @@
 use geoharness_audit::catalog::CHECKS;
 
 const CITATIONS: &str = include_str!("../../../CITATIONS.md");
-const SOURCES: [&str; 2] = [
+const SOURCES: [&str; 5] = [
     include_str!("../src/weights.rs"),
-    include_str!("../src/catalog.rs"),
+    include_str!("../src/catalog/mod.rs"),
+    include_str!("../src/catalog/advisory.rs"),
+    include_str!("../../geoharness-core/src/site/jsonld.rs"),
+    include_str!("../../geoharness-core/src/link_header.rs"),
 ];
 
 /// The first column of every markdown table whose header's first cell is `ID`.
@@ -76,7 +79,7 @@ fn ids_named_in_weight_and_catalog_docs_exist() {
     for id in named {
         assert!(
             ids.iter().any(|i| i == id),
-            "weights.rs names unknown citation {id}"
+            "a source names unknown citation {id}"
         );
     }
 }

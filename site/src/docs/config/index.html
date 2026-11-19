@@ -50,6 +50,8 @@
 <tr><td><code>identity.url</code></td><td>string</td><td>yes</td><td>—</td><td>absolute http(s) URL</td></tr>
 <tr><td><code>identity.sameAs</code></td><td>string[]</td><td>no</td><td><code>[]</code> (no profiles is a valid statement, not an assumption)</td><td>absolute http(s) URLs; injected as <code>rel=me</code> and JSON-LD <code>sameAs</code></td></tr>
 <tr><td><code>identity.organization</code></td><td>table <code>{ name, url }</code></td><td>no</td><td>absent (a person need not belong to one)</td><td>both keys required when present</td></tr>
+<tr><td><code>identity.logo</code></td><td>string</td><td>no</td><td>absent (no logo is declared; GeoHarness never guesses one from the site's files)</td><td>absolute <code>https://</code> URL; JSON-LD <code>logo</code> of the entity node (<code>google-organization</code>)</td></tr>
+<tr><td><code>identity.email</code></td><td>string</td><td>no</td><td>absent (no contact is declared; an address is never inferred)</td><td>one plain address (<code>name@example.com</code>); JSON-LD <code>email</code> of the entity node, which the advisory <code>signals.contact</code> check reads</td></tr>
 <tr><td><code>contentSignal.search</code></td><td>bool</td><td>yes</td><td>— (a policy choice; never defaulted)</td><td></td></tr>
 <tr><td><code>contentSignal.aiInput</code></td><td>bool</td><td>yes</td><td>—</td><td></td></tr>
 <tr><td><code>contentSignal.aiTrain</code></td><td>bool</td><td>yes</td><td>—</td><td></td></tr>
@@ -101,7 +103,10 @@ language = &quot;en&quot;
 kind = &quot;organization&quot;
 name = &quot;Avarok Cybersecurity&quot;
 url = &quot;https://avarok.net&quot;
-sameAs = [&quot;https://github.com/Avarok-Cybersecurity&quot;]
+# The same profiles, logo and address avarok.net declares for itself, so both sites name one entity.
+sameAs = [&quot;https://github.com/Avarok-Cybersecurity&quot;, &quot;https://blog.avarok.net/&quot;, &quot;https://www.linkedin.com/company/avarok/&quot;]
+logo = &quot;https://avarok.net/icon-512.png&quot;
+email = &quot;contact@avarok.net&quot;
 
 # An open-source tool's documentation is meant to be found, quoted and learned:
 # search, answers and training all help people use it correctly.
@@ -151,7 +156,8 @@ routes = [&quot;/&quot;, &quot;/citations/&quot;]</code></pre>
 </div></main>
 <!-- generated:footer -->
 <footer class="site"><div class="wrap">
-<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net">Avarok Cybersecurity</a>.</p>
+<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net/about/">Avarok Cybersecurity</a>.
+ <a href="mailto:contact@avarok.net">Contact</a> · <a href="https://avarok.net/privacy/">Privacy notice</a> · <a href="https://github.com/Avarok-Cybersecurity/geoharness/security/policy">Security policy</a></p>
 <p>This site is built, audited and deployed by GeoHarness itself. Agents: send <code>Accept: text/markdown</code>, or read <a href="/llms.txt">llms.txt</a>.</p>
 </div></footer>
 <!-- /generated:footer -->

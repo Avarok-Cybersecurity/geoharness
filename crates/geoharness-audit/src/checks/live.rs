@@ -1,11 +1,14 @@
 //! Live checks: the plan from `liveCheckPlan` is the expectation, so the
 //! audit and the host's fetch list share one definition.
 
+use geoharness_core::link_header;
 use geoharness_core::live::{AGENT_ACCEPT, CHECK_UA, LiveTarget, evaluate, plan};
 use geoharness_core::types::{LiveObservation, LiveRequest};
 
 use super::{Scored, pass_fail};
-use crate::catalog::{Check, LIVE_AI_AGENTS, LIVE_BUILD, LIVE_FILES, LIVE_NEGOTIATION};
+use crate::catalog::{
+    Check, LIVE_AI_AGENTS, LIVE_BUILD, LIVE_FILES, LIVE_LINK_HEADER, LIVE_NEGOTIATION,
+};
 use crate::weights::CHALLENGE_MARKERS;
 
 fn classify(r: &LiveRequest) -> &'static Check {
@@ -23,6 +26,62 @@ fn classify(r: &LiveRequest) -> &'static Check {
     } else {
         &LIVE_FILES
     }
+}
+
+fn find<'a>(r: &LiveRequest, live: &'a [LiveObservation]) -> Option<&'a LiveObservation> {
+    live.iter()
+        .find(|o| o.url == r.url && o.user_agent == r.user_agent && o.accept == r.accept)
+}
+
+/// What a sampled page's (or its twin's) `Link` header must declare: the
+/// markdown twin for an HTML response, the canonical page for a twin.
+fn link_expectation(r: &LiveRequest) -> Option<(&'static str, Option<&'static str>)> {
+    if r.user_agent != CHECK_UA {
+        return None;
+    }
+    match r.expect.content_type.as_deref() {
+        Some("text/html") => Some(("alternate", Some("text/markdown"))),
+        Some("text/markdown") => Some(("canonical", None)),
+        _ => None,
+    }
+}
+
+/// One advisory finding per sampled page and per sampled twin.
+pub fn link_headers(
+    target: &LiveTarget,
+    routes: &[String],
+    live: &[LiveObservation],
+) -> Vec<Scored> {
+    plan(target, routes)
+        .iter()
+        .filter_map(|r| {
+            let (rel, media) = link_expectation(r)?;
+            let header = find(r, live).and_then(|o| {
+                o.headers
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case("link"))
+                    .map(|(_, v)| v.as_str())
+            });
+            let ok = header.is_some_and(|h| {
+                link_header::parse(h)
+                    .iter()
+                    .any(|l| l.has_rel(rel) && media.is_none_or(|m| l.param("type") == Some(m)))
+            });
+            let want =
+                media.map_or_else(|| format!("rel={rel}"), |m| format!("rel={rel} type={m}"));
+            let evidence = match header {
+                None => format!(
+                    "{} (Accept {:?}): no Link header; expected {want}",
+                    r.url, r.accept
+                ),
+                Some(h) => format!(
+                    "{} (Accept {:?}): Link {h:?}; expected {want}",
+                    r.url, r.accept
+                ),
+            };
+            Some(pass_fail(&LIVE_LINK_HEADER, None, ok, evidence))
+        })
+        .collect()
 }
 
 fn failures(r: &LiveRequest, obs: Option<&LiveObservation>) -> Vec<String> {
@@ -44,10 +103,7 @@ pub fn checks(target: &LiveTarget, routes: &[String], live: &[LiveObservation]) 
     plan(target, routes)
         .iter()
         .map(|r| {
-            let obs = live
-                .iter()
-                .find(|o| o.url == r.url && o.user_agent == r.user_agent && o.accept == r.accept);
-            let fails = failures(r, obs);
+            let fails = failures(r, find(r, live));
             let what = format!("{} (UA {:?}, Accept {:?})", r.url, r.user_agent, r.accept);
             let evidence = if fails.is_empty() {
                 format!("{what}: ok")

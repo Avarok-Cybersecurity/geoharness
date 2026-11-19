@@ -41,7 +41,7 @@ title: "Guide | Example Docs"
 description: "Install and configure Example."
 canonical: "https://docs.example.org/guide/"
 lastmod: "2026-11-01T12:00:00Z"
-tokens: 196
+tokens: 272
 ---
 
 # Guide
@@ -66,25 +66,35 @@ Next: [advanced](https://example.com/guide/advanced/).
 ```json
 {
   "@context": "https://schema.org",
-  "@type": "WebPage",
-  "author": {
-    "@type": "Organization",
-    "name": "Example Inc",
-    "sameAs": [
-      "https://github.com/example"
-    ],
-    "url": "https://example.com/"
-  },
-  "dateModified": "2026-11-01T12:00:00Z",
-  "description": "Install and configure Example.",
-  "inLanguage": "en-US",
-  "isPartOf": {
-    "@type": "WebSite",
-    "name": "Example Docs",
-    "url": "https://example.com/"
-  },
-  "name": "Guide | Example Docs",
-  "url": "https://docs.example.org/guide/"
+  "@graph": [
+    {
+      "@id": "https://example.com/#organization",
+      "@type": "Organization",
+      "name": "Example Inc",
+      "sameAs": [
+        "https://github.com/example"
+      ],
+      "url": "https://example.com/"
+    },
+    {
+      "@id": "https://docs.example.org/guide/",
+      "@type": "WebPage",
+      "author": {
+        "@id": "https://example.com/#organization"
+      },
+      "dateModified": "2026-11-01T12:00:00Z",
+      "description": "Install and configure Example.",
+      "inLanguage": "en-US",
+      "isPartOf": {
+        "@id": "https://example.com/#website",
+        "@type": "WebSite",
+        "name": "Example Docs",
+        "url": "https://example.com/"
+      },
+      "name": "Guide | Example Docs",
+      "url": "https://docs.example.org/guide/"
+    }
+  ]
 }
 ```
 
@@ -94,7 +104,7 @@ title: "Advanced | Example Docs"
 description: "Advanced use of Example."
 canonical: "https://example.com/guide/advanced/"
 lastmod: "2026-11-12T10:00:00Z"
-tokens: 210
+tokens: 287
 ---
 
 # Advanced
@@ -108,25 +118,35 @@ Back to the [guide](https://example.com/guide/).
 ```json
 {
   "@context": "https://schema.org",
-  "@type": "WebPage",
-  "author": {
-    "@type": "Organization",
-    "name": "Example Inc",
-    "sameAs": [
-      "https://github.com/example"
-    ],
-    "url": "https://example.com/"
-  },
-  "dateModified": "2026-11-12T10:00:00Z",
-  "description": "Advanced use of Example.",
-  "inLanguage": "en-US",
-  "isPartOf": {
-    "@type": "WebSite",
-    "name": "Example Docs",
-    "url": "https://example.com/"
-  },
-  "name": "Advanced | Example Docs",
-  "url": "https://example.com/guide/advanced/"
+  "@graph": [
+    {
+      "@id": "https://example.com/#organization",
+      "@type": "Organization",
+      "name": "Example Inc",
+      "sameAs": [
+        "https://github.com/example"
+      ],
+      "url": "https://example.com/"
+    },
+    {
+      "@id": "https://example.com/guide/advanced/",
+      "@type": "WebPage",
+      "author": {
+        "@id": "https://example.com/#organization"
+      },
+      "dateModified": "2026-11-12T10:00:00Z",
+      "description": "Advanced use of Example.",
+      "inLanguage": "en-US",
+      "isPartOf": {
+        "@id": "https://example.com/#website",
+        "@type": "WebSite",
+        "name": "Example Docs",
+        "url": "https://example.com/"
+      },
+      "name": "Advanced | Example Docs",
+      "url": "https://example.com/guide/advanced/"
+    }
+  ]
 }
 ```
 
@@ -136,7 +156,7 @@ title: "Pricing | Example Docs"
 description: "Example is free."
 canonical: "https://example.com/pricing/"
 lastmod: "2026-10-05T08:30:00Z"
-tokens: 194
+tokens: 269
 ---
 
 # Pricing
@@ -148,24 +168,34 @@ There are no paid tiers, no usage limits and no account to create. Companies tha
 ```json
 {
   "@context": "https://schema.org",
-  "@type": "WebPage",
-  "author": {
-    "@type": "Organization",
-    "name": "Example Inc",
-    "sameAs": [
-      "https://github.com/example"
-    ],
-    "url": "https://example.com/"
-  },
-  "dateModified": "2026-10-05T08:30:00Z",
-  "description": "Example is free.",
-  "inLanguage": "en-US",
-  "isPartOf": {
-    "@type": "WebSite",
-    "name": "Example Docs",
-    "url": "https://example.com/"
-  },
-  "name": "Pricing | Example Docs",
-  "url": "https://example.com/pricing/"
+  "@graph": [
+    {
+      "@id": "https://example.com/#organization",
+      "@type": "Organization",
+      "name": "Example Inc",
+      "sameAs": [
+        "https://github.com/example"
+      ],
+      "url": "https://example.com/"
+    },
+    {
+      "@id": "https://example.com/pricing/",
+      "@type": "WebPage",
+      "author": {
+        "@id": "https://example.com/#organization"
+      },
+      "dateModified": "2026-10-05T08:30:00Z",
+      "description": "Example is free.",
+      "inLanguage": "en-US",
+      "isPartOf": {
+        "@id": "https://example.com/#website",
+        "@type": "WebSite",
+        "name": "Example Docs",
+        "url": "https://example.com/"
+      },
+      "name": "Pricing | Example Docs",
+      "url": "https://example.com/pricing/"
+    }
+  ]
 }
 ```

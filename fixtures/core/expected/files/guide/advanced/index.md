@@ -3,7 +3,7 @@ title: "Advanced | Example Docs"
 description: "Advanced use of Example."
 canonical: "https://example.com/guide/advanced/"
 lastmod: "2026-11-12T10:00:00Z"
-tokens: 210
+tokens: 287
 ---
 
 # Advanced
@@ -17,24 +17,34 @@ Back to the [guide](https://example.com/guide/).
 ```json
 {
   "@context": "https://schema.org",
-  "@type": "WebPage",
-  "author": {
-    "@type": "Organization",
-    "name": "Example Inc",
-    "sameAs": [
-      "https://github.com/example"
-    ],
-    "url": "https://example.com/"
-  },
-  "dateModified": "2026-11-12T10:00:00Z",
-  "description": "Advanced use of Example.",
-  "inLanguage": "en-US",
-  "isPartOf": {
-    "@type": "WebSite",
-    "name": "Example Docs",
-    "url": "https://example.com/"
-  },
-  "name": "Advanced | Example Docs",
-  "url": "https://example.com/guide/advanced/"
+  "@graph": [
+    {
+      "@id": "https://example.com/#organization",
+      "@type": "Organization",
+      "name": "Example Inc",
+      "sameAs": [
+        "https://github.com/example"
+      ],
+      "url": "https://example.com/"
+    },
+    {
+      "@id": "https://example.com/guide/advanced/",
+      "@type": "WebPage",
+      "author": {
+        "@id": "https://example.com/#organization"
+      },
+      "dateModified": "2026-11-12T10:00:00Z",
+      "description": "Advanced use of Example.",
+      "inLanguage": "en-US",
+      "isPartOf": {
+        "@id": "https://example.com/#website",
+        "@type": "WebSite",
+        "name": "Example Docs",
+        "url": "https://example.com/"
+      },
+      "name": "Advanced | Example Docs",
+      "url": "https://example.com/guide/advanced/"
+    }
+  ]
 }
 ```

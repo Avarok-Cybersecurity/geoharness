@@ -48,10 +48,13 @@ pub const CATEGORIES: [Category; 5] = [
         title: "Extractability (advisory)",
         weight: 12.0,
     },
-    // Shown not to move AI citations (grade B); kept for completeness.
+    // JSON-LD and llms.txt were shown not to move AI citations (grade B);
+    // the entity, contact, trust-link, snippet-length and Link-header checks
+    // rest on platform documentation or prior art with no measured AI-citation
+    // effect. They lower the score when missing; they never block.
     Category {
         id: "signals",
-        title: "Optional signals (advisory)",
+        title: "Signals (advisory)",
         weight: 8.0,
     },
 ];
@@ -69,6 +72,14 @@ pub const TWIN_MIN_OVERLAP: f64 = 0.8;
 pub const LINKS_FULL_CREDIT_BELOW: usize = 20;
 pub const LINKS_NO_CREDIT_FROM: usize = 60;
 pub const FIRST_WINDOW_CHARS: usize = 5_700;
+/// Search snippets are cut to the device width, with no fixed limit
+/// (`google-snippet`); 160 characters is the conventional desktop budget,
+/// and `geo-new` flags a 173-character description. Advisory only.
+pub const DESCRIPTION_MAX_CHARS: usize = 160;
+/// `geo-new` (CIT-02): a quotable section has two or more sentences of
+/// 10–25 words, or a list. Prior art with no published validation.
+pub const QUOTABLE_SENTENCE_WORDS: std::ops::RangeInclusive<usize> = 10..=25;
+pub const QUOTABLE_MIN_SENTENCES: usize = 2;
 /// `indig-2026`: share of the page in which citations concentrate.
 pub const ENTITY_WINDOW_PERCENT: usize = 30;
 /// Search and user agents whose access is blocking (in addition to the

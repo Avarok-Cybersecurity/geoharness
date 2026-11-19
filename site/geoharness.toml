@@ -9,7 +9,10 @@ language = "en"
 kind = "organization"
 name = "Avarok Cybersecurity"
 url = "https://avarok.net"
-sameAs = ["https://github.com/Avarok-Cybersecurity"]
+# The same profiles, logo and address avarok.net declares for itself, so both sites name one entity.
+sameAs = ["https://github.com/Avarok-Cybersecurity", "https://blog.avarok.net/", "https://www.linkedin.com/company/avarok/"]
+logo = "https://avarok.net/icon-512.png"
+email = "contact@avarok.net"
 
 # An open-source tool's documentation is meant to be found, quoted and learned:
 # search, answers and training all help people use it correctly.

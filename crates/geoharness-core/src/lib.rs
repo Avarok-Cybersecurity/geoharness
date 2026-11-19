@@ -9,6 +9,7 @@ pub mod glob;
 pub mod headers;
 pub mod html;
 pub mod indexnow;
+pub mod link_header;
 pub mod links;
 pub mod live;
 pub mod llms;
