@@ -27,7 +27,7 @@ function staticAuditInput(): AuditInput {
 function healthy(plan: LiveRequest[]): LiveObservation[] {
   return plan.map((r) => {
     const ct = r.expect.contentType ?? 'text/html';
-    const link = r.expect.contentType === 'text/html' ? { link: `<${r.url}index.md>; rel="alternate"; type="text/markdown"` }
+    const link: Record<string, string> = r.expect.contentType === 'text/html' ? { link: `<${r.url}index.md>; rel="alternate"; type="text/markdown"` }
       : r.expect.contentType === 'text/markdown' ? { link: `<${r.url}>; rel="canonical"` } : {};
     return {
       url: r.url, userAgent: r.userAgent, accept: r.accept, status: r.expect.status,
