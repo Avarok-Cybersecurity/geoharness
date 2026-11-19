@@ -15,9 +15,11 @@ if (!config.ok) throw new Error(`parseConfig failed: ${JSON.stringify(config.err
 const input = {
   config: config.value,
   buildId: '0123abcd',
+  hosts: ['example.com'],
   env: {},
   pages: [],
   existing: { robots: read('fixtures/core/site/existing/robots.txt'), headers: read('fixtures/core/site/existing/_headers') },
+  sourceLastmod: {},
 };
 const out = core.processSite(input);
 if (!out.ok) throw new Error(`processSite failed: ${JSON.stringify(out.errors)}`);

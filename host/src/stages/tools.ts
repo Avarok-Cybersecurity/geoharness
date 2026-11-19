@@ -1,4 +1,5 @@
 import type { ProcResult } from '../io/types.js';
+import { toolFailure } from '../lib/wrangler-error.js';
 import type { StageContext } from './context.js';
 
 /**
@@ -22,7 +23,7 @@ export async function runTool(ctx: StageContext, tool: keyof typeof TOOLS, args:
 
 export async function runToolOk(ctx: StageContext, tool: keyof typeof TOOLS, args: string[], run: ToolRun): Promise<ProcResult> {
   const r = await runTool(ctx, tool, args, run);
-  if (r.code !== 0) throw new Error(`${TOOLS[tool].bin} ${args[0] ?? ''} exited with ${r.code}`);
+  if (r.code !== 0) throw new Error(toolFailure(TOOLS[tool].bin, args[0] ?? '', r, [ctx.inputs.apiToken]));
   return r;
 }
 

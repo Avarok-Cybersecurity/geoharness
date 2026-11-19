@@ -138,6 +138,12 @@ impl MainContent<'_> {
         visible_text(self.element)
     }
 
+    /// Visible text with text-less links named as the twin names them
+    /// (`labels`): what the twin of this content is compared against.
+    pub fn text_with_link_names(&self) -> String {
+        super::labels::text_with_link_names(&self.element.inner_html())
+    }
+
     pub fn links(&self) -> Vec<String> {
         sel("a[href]").map_or_else(Vec::new, |s| {
             self.element

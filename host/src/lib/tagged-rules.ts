@@ -21,23 +21,24 @@ function fingerprint(rule: CfRule): string {
   return canonicalJson(picked);
 }
 
-export interface RulePlan { changed: boolean; rules: CfRule[]; added: number; removed: number }
+export interface RulePlan { changed: boolean; rules: CfRule[]; added: number; removed: number; others: CfRule[] }
 
 /**
- * Replaces only the rules tagged for this host. Every other rule is kept verbatim and in place;
+ * Replaces only the rules tagged for these hosts. Every other rule is kept verbatim and in place;
  * ours are appended in the desired order. No change is planned when ours already match exactly.
  */
-export function planTaggedRules(existing: CfRule[] | undefined, desired: CfRule[], tag: string): RulePlan {
+export function planTaggedRules(existing: CfRule[] | undefined, desired: CfRule[], tags: readonly string[]): RulePlan {
+  const owned = (description: unknown): boolean => tags.some((t) => isTagged(description, t));
   for (const d of desired) {
-    if (!isTagged(d.description, tag)) throw new Error(`desired rule "${String(d.description)}" is not tagged ${tag}`);
+    if (!owned(d.description)) throw new Error(`desired rule "${String(d.description)}" is not tagged ${tags.join(' or ')}`);
   }
   const current = existing ?? [];
-  const ours = current.filter((r) => isTagged(r.description, tag));
-  const others = current.filter((r) => !isTagged(r.description, tag));
+  const ours = current.filter((r) => owned(r.description));
+  const others = current.filter((r) => !owned(r.description));
   const same = ours.length === desired.length && ours.every((r, i) => {
     const d = desired[i];
     return d !== undefined && fingerprint(r) === fingerprint(d);
   });
-  if (same) return { changed: false, rules: current, added: 0, removed: 0 };
-  return { changed: true, rules: [...others, ...desired], added: desired.length, removed: ours.length };
+  if (same) return { changed: false, rules: current, added: 0, removed: 0, others };
+  return { changed: true, rules: [...others, ...desired], added: desired.length, removed: ours.length, others };
 }

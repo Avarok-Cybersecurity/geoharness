@@ -96,3 +96,39 @@ fn author_tags_are_never_overridden() {
         "author JSON-LD kept, none added"
     );
 }
+
+#[test]
+fn every_served_host_gets_its_own_tagged_rewrite_rules() {
+    let input = common::input();
+    let out = process_site(&input).unwrap_or_else(|e| panic!("{e:?}"));
+    for host in &input.hosts {
+        let tagged: Vec<_> = out
+            .rewrite_rules
+            .iter()
+            .filter(|r| r.description.starts_with(&format!("geoharness:{host} ")))
+            .collect();
+        assert_eq!(tagged.len(), 3, "{host}: {tagged:#?}");
+        let guard = format!("http.host eq \"{host}\"");
+        assert!(
+            tagged.iter().all(|r| r.expression.contains(&guard)),
+            "{tagged:#?}"
+        );
+    }
+    assert_eq!(out.rewrite_rules.len(), 3 * input.hosts.len());
+}
+
+#[test]
+fn hosts_must_include_the_origin_host_and_be_plain_unique_host_names() {
+    for hosts in [
+        vec![],
+        vec!["www.example.com"],
+        vec!["example.com", "example.com"],
+        vec!["example.com", "Example.org"],
+        vec!["example.com", "example.org:8443"],
+        vec!["example.com", ""],
+    ] {
+        let mut input = common::input();
+        input.hosts = hosts.iter().map(|h| (*h).to_owned()).collect();
+        assert_eq!(codes(&input), vec!["input.invalid"], "{hosts:?}");
+    }
+}

@@ -25,6 +25,7 @@
 - [geoharness.toml](#geoharnesstoml)
 - [Adapters and runtime detection](#adapters-and-runtime-detection)
 - [Cloudflare setup and permissions](#cloudflare-setup-and-permissions)
+- [Moving from Pages to Workers](#moving-from-pages-to-workers)
 - [Free-tier limits](#free-tier-limits)
 - [GEO score](#geo-score)
 - [Lighthouse gate](#lighthouse-gate)
@@ -110,7 +111,7 @@ flowchart LR
   A --> L{Lighthouse<br/>100 x 4, median of 3}
   L -->|below 100| X
   L --> D[deploy<br/>Workers or Pages]
-  D --> Z[zone<br/>3 tagged rewrite rules,<br/>free speed settings]
+  D --> Z[zone<br/>3 tagged rewrite rules per domain,<br/>free speed settings]
   Z --> V{verify<br/>live audit, 8 AI agents}
   V --> I[IndexNow] --> S[summary]
   L -. deploy: false .-> S
@@ -142,6 +143,7 @@ Composite actions do not enforce `required`, so GeoHarness validates every input
 | `extra-optimizations` | no | `all` | Free zone optimizations, as tokens applied left to right: all, none, &lt;id>, -&lt;id>. Ids: email_obfuscation, rocket_loader, early_hints, http3, brotli, smart_tiered_cache, zstd, bot_fight_mode, ai_bots_protection. Example: "all -rocket_loader". |
 | `deploy` | no | `true` | true deploys, configures the zone, verifies live and pings IndexNow. false is a dry run for pull requests: build, process, GEO audit and Lighthouse only, with no Cloudflare API call. |
 | `rollback-on-failure` | no | — | Required when deploy is true (no default). true: when the post-deploy verification (live GEO audit or the production Lighthouse gate) fails or cannot complete, put production back on the version it served before this deploy (wrangler rollback for workers, the Pages rollback API for pages), then fail. false: fail and leave the new build live. A first deploy has nothing to roll back to and just fails. |
+| `takeover-dns` | no | — | workers target only; no default. When a domain still has its own A, AAAA or CNAME records (e.g. a CNAME to a Pages project), Cloudflare cannot bind it to the Worker (error 100117) and preflight fails before the build, explaining the move. true: after uploading the Worker, GeoHarness deletes those records and at once attaches the host as a Worker Custom Domain, host by host (zero downtime); then remove the host from the old Pages project. false: never touch them; do the move by hand. Not needed when no domain has such records. |
 | `rag` | no | `false` | Coming in v1.1 (RAG index export). Not implemented yet; setting it to true fails the run. |
 
 ### Outputs
@@ -160,7 +162,7 @@ The full reference is in [docs/config.md](docs/config.md) and on [geo.avarok.net
 - `[site]` origin, name and language; `[identity]` the person or organization behind the site, with `sameAs` profiles.
 - `[contentSignal]` `search`, `aiInput`, `aiTrain`: required, never defaulted; written to robots.txt and `_headers`.
 - `[[bots]]` user-agent groups (`search`, `user`, `training`, `other`) with allow/disallow paths.
-- `[content]` the main-content selector and excluded routes; `[llms]` the llms.txt summary and sections.
+- `[content]` the main-content selector, excluded routes and `sources` (route → source files, for the sitemap `lastmod` of built pages); `[llms]` the llms.txt summary and sections.
 - `env` the only environment variables templates may read; `[headers]` immutable asset paths; `[prerender]` routes for SPA prerendering.
 - `[analytics]` `cloudflareWebAnalytics`: true extends the site's own CSP in `_headers` so the beacon Cloudflare injects can load and report (the only edit GeoHarness makes to the site's headers); false or absent makes verify fail if Cloudflare injects it anyway.
 
@@ -208,17 +210,31 @@ Preflight probes each enabled feature and fails listing every missing group befo
 | Zone Transform Rules Write | zone | `rewrite-rules` |
 <!-- /generated:permissions -->
 
+## Moving from Pages to Workers
+
+A Worker Custom Domain cannot take a host name that still has its own A, AAAA or CNAME record, such as the proxied CNAME to `<project>.pages.dev` a Pages custom domain uses: wrangler uploads the Worker and then fails with Cloudflare error 100117 ("already has externally managed DNS records"). Preflight checks every domain before the build and stops with the records it found and the steps below; a domain that is a Custom Domain of another Worker is never taken.
+
+The move, without downtime, per host and back to back (proven on thomaspbraun.com: no non-200 response in about 1,100 probes per host):
+
+1. `DELETE /zones/{zone_id}/dns_records/{record_id}` for the host's A/AAAA/CNAME records (MX and TXT stay).
+2. Immediately `PUT /accounts/{account_id}/workers/domains` with `{"hostname", "service": <project-name>, "zone_id", "environment": "production"}`. The Worker must exist.
+3. When every host is moved, remove the hosts from the Pages project's custom domains; until then the edge can still send some requests to Pages. Keep the Pages project as your way back: deleting the Worker domains, recreating the CNAME and re-adding the Pages domains restores it.
+
+`takeover-dns: true` makes GeoHarness do steps 1 and 2: it uploads the Worker without routes, moves each host, puts a host's records back if its bind fails, then deploys normally; the job summary lists what moved and the Pages project left to clean up (step 3 stays yours: GeoHarness does not touch Pages for a workers deploy). `takeover-dns: false` never changes DNS. Not stating it is fine until a domain has such records.
+
+`rollback-on-failure` rolls back only to an earlier version of this Worker that served one of the domains. On the first run of a move there is none, so a failed verification leaves the new build live and says so: the old Pages production is not something GeoHarness can roll back to.
+
 ## Free-tier limits
 
 | Resource | Free plan | GeoHarness use |
 |---|---|---|
-| Transform Rules (URL Rewrite) | 10 per zone, no regex | 3 per host (`concat`, `wildcard_replace`) |
+| Transform Rules (URL Rewrite) | 10 per zone, no regex | 3 per domain (`concat`, `wildcard_replace`); checked before deploy against the zone's other rules |
 | Workers static asset requests | Free, unlimited | Every page, twin and file |
 | Workers requests | 100,000/day | None, unless the zone is not accessible |
 | `_headers` rules | 100 | Site's own plus GeoHarness's; more is a build error |
 | Markdown for Agents | Pro and above | Not used; reproduced with twins and rules |
 
-**Fail modes.** Missing permissions fail preflight. Without zone access GeoHarness falls back to a negotiate Worker that runs first; it counts against the 100,000 requests/day of Workers Free and past that Cloudflare answers HTTP 429 (error 1027) until the daily reset; the run warns. A failed audit or pre-deploy Lighthouse gate stops before deploy, so the live site keeps its previous build. Verify waits up to 5 minutes for the edge to serve the new build; a failed live audit or production Lighthouse gate then rolls back when `rollback-on-failure` is true, and so does a verification that cannot complete (the build never goes live, or a live request still fails after 3 tries 2 s apart). Only rules tagged `geoharness:<host>` are ever changed.
+**Fail modes.** Missing permissions fail preflight. Without zone access GeoHarness falls back to a negotiate Worker that runs first; it counts against the 100,000 requests/day of Workers Free and past that Cloudflare answers HTTP 429 (error 1027) until the daily reset; the run warns. A zone whose rules would exceed its plan's URL Rewrite limit fails before deploy, naming the rules it counted. A failed audit or pre-deploy Lighthouse gate stops before deploy, so the live site keeps its previous build. Verify waits up to 5 minutes for the edge to serve the new build; a failed live audit or production Lighthouse gate then rolls back when `rollback-on-failure` is true, and so does a verification that cannot complete (the build never goes live, or a live request still fails after 3 tries 2 s apart). Only rules tagged `geoharness:<host>` are ever changed.
 
 ## GEO score
 
@@ -243,6 +259,7 @@ Preflight probes each enabled feature and fails listing every missing group befo
 | `index.canonical` | Page has a canonical link | indexability | blocking | A | [google-ai-guide-2026](#citations) |
 | `index.broken_links` | Internal links resolve | indexability | blocking | A | [google-ai-guide-2026](#citations) |
 | `index.live_build` | Live site serves this build | indexability | blocking | A | [cf-workers-static-assets](#citations) |
+| `index.build_meta_early` | Build meta sits where the live check reads | indexability | blocking | A | [cf-workers-static-assets](#citations) |
 | `index.csp_robots` | CSP lets the page fetch /robots.txt (Lighthouse SEO) | indexability | blocking | A, A (spec) | [lighthouse-robots-txt](#citations), [w3c-csp3](#citations) |
 | `index.live_beacon` | No Cloudflare Web Analytics beacon the CSP was not extended for | indexability | blocking | A | [cf-web-analytics](#citations), [lighthouse-errors-in-console](#citations) |
 | `delivery.twin` | Markdown twin exists and matches the page | delivery | blocking | A, A (spec) | [google-spam-policies](#citations), [llmstxt-spec](#citations), [htmlrag-2025](#citations) |
@@ -265,7 +282,7 @@ Preflight probes each enabled feature and fails listing every missing group befo
 1. **Before deploy**, against the processed output served locally by `wrangler dev --local` (wrangler 4.156.0) with **the same wrangler config the deploy uses** (`wrangler pages dev` for `target: pages`), so `_headers` (CSP included), `html_handling` and 404 handling are what production serves. No Cloudflare account is involved. Lighthouse CI's own static server ignores all three, which once let a CSP that blocks Lighthouse's `robots.txt` fetch pass the gate and score 92 in production.
 2. **After deploy**, against the live URLs, once the live build meta equals the commit. Only production shows what the edge adds, such as the Cloudflare Web Analytics beacon. On failure, `rollback-on-failure: true` puts production back on the version it served before (`wrangler rollback <version>` for workers, the Pages rollback API for pages); a first deploy has nothing to roll back to. The run then fails with the failing audits in the job summary.
 
-Reports go to Lighthouse CI's temporary public storage and are linked from the job summary.
+The job summary shows, for each gate, a table of every audited URL × the four categories (median of the runs) with the ids of the failing audits. Reports go to Lighthouse CI's temporary public storage and are linked from the job summary.
 
 ## AI search with LatticeDB
 

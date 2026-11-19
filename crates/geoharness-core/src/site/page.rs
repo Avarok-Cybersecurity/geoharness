@@ -4,6 +4,7 @@ use crate::config::SiteConfig;
 use crate::error::{CoreError, Error, warn, warning};
 use crate::html::absolutize::absolutize;
 use crate::html::inject::{HeadValues, inject, missing_tags};
+use crate::html::labels::label_textless_links;
 use crate::html::{Page, markdown::to_markdown};
 use crate::tokens;
 use crate::twin::{self, Frontmatter};
@@ -77,7 +78,8 @@ pub fn process(
                 Some(page.file.clone()),
             ));
         }
-        to_markdown(&absolutize(&main.inner_html(), origin, &page.route)?)?
+        let labelled = label_textless_links(&main.inner_html());
+        to_markdown(&absolutize(&labelled, origin, &page.route, &canonical)?)?
     };
     let after = twin::body_with_json_ld(&body, &json_ld);
     let token_count = tokens::estimate(&after);

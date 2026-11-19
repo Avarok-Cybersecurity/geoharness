@@ -6,16 +6,18 @@ import type { Inputs } from '../inputs.js';
 import type { CfClient } from '../io/cloudflare/client.js';
 import type { Zone } from '../io/cloudflare/zones.js';
 import type { HostIO } from '../io/types.js';
-import type { LighthouseFailure } from '../lib/lighthouse-report.js';
+import type { LighthouseFailure, LighthouseMedian } from '../lib/lighthouse-report.js';
 import type { OptimizationId } from '../lib/optimizations.js';
 
-export interface LighthouseState { skipped: boolean; urls: string[]; links: Record<string, string>; failures: LighthouseFailure[] }
+export interface LighthouseState { skipped: boolean; urls: string[]; links: Record<string, string>; failures: LighthouseFailure[]; medians: LighthouseMedian[] }
 
 /** What production served before this deploy, recorded by deploy so verify can roll back to it. */
 export type PreviousDeployment =
   | { target: 'workers'; workerName: string; versionId: string | undefined }
   | { target: 'pages'; deploymentId: string | undefined }
-  | { target: 'unknown'; reason: string };
+  | { target: 'unknown'; reason: string }
+  /** Production was not on this Worker before the run (a migration's first run): nothing of ours to go back to. */
+  | { target: 'none'; reason: string };
 
 /** Everything a stage produces for later stages; persisted as JSON between `geoharness <stage>` calls. */
 export interface RunState {
@@ -27,6 +29,8 @@ export interface RunState {
     /** rules: Accept negotiation via zone Transform Rules; negotiate-worker: fallback Worker (no zone access). */
     negotiation: 'rules' | 'negotiate-worker';
     optimizations: OptimizationId[];
+    /** Domains whose own DNS records deploy replaces with Worker Custom Domains (takeover-dns: true). */
+    takeover: string[];
   };
   adapterId?: AdapterId;
   build?: BuildResult;
@@ -46,6 +50,8 @@ export interface RunState {
   previousSitemap?: string;
   deploy?: { url: string; target: 'workers' | 'pages' };
   zoneChanges?: string[];
+  /** What the DNS takeover did, host by host, plus what is left to the owner. */
+  dnsTakeover?: string[];
   liveAudit?: AuditReport;
   indexnow?: { submitted: string[]; status: number | undefined };
 }

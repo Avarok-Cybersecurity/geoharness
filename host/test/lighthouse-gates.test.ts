@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProcResult } from '../src/io/types.js';
 import { runAll } from '../src/stages/index.js';
 import { SHA } from './helpers/context.js';
-import { CF_WITH_VERSION, currentCf, harness, HOST, wranglerCalls, type Harness } from './helpers/harness.js';
+import { CF_WITH_VERSION, currentCf, harness, HOST, wranglerCalls, ZONE, type Harness } from './helpers/harness.js';
 import type { ProcCall } from './helpers/world.js';
 
 const LHCI = '--package=@lhci/cli@0.16.1';
@@ -63,6 +63,8 @@ describe('pre-deploy Lighthouse gate (local wrangler server)', () => {
     const summary = await readFile(h.summary, 'utf8');
     expect(summary).toContain('### Lighthouse (live)');
     expect(summary).toContain('[report](https://storage.example/about/)');
+    expect(summary).toContain('| Page | Performance | Accessibility | Best practices | SEO | Failing audits |');
+    expect(summary).toMatch(/\| \/about\/ \| 100 \| 100 \| 100 \| 100 \| — \|/);
   });
 
   it('fails before deploy, lists the failing audits, and still stops the server', async () => {
@@ -71,6 +73,7 @@ describe('pre-deploy Lighthouse gate (local wrangler server)', () => {
     expect(wranglerCalls(h).some((c) => c.args.includes('deploy'))).toBe(false);
     expect(h.proc.stopped).toBe(1);
     expect(await readFile(h.summary, 'utf8')).toContain('| seo | 92 | robots-txt (robots.txt is valid)');
+    expect(await readFile(h.summary, 'utf8')).toMatch(/\| \/about\/ \| 100 \| 100 \| 100 \| 92 \| `robots-txt` \|/);
   });
 
   it('fails clearly when the local server never becomes ready, and stops it', async () => {
@@ -103,6 +106,14 @@ describe('post-deploy Lighthouse gate and rollback', () => {
     const h = await harness({ inputs: { lighthouse: true, lighthouseMaxUrls: 1 }, onProc: liveFails });
     await expect(runAll(h.ctx)).rejects.toThrow(/NOT rolled back: first deploy of Worker geo-site/);
     expect(wranglerCalls(h).some((c) => c.args.includes('rollback'))).toBe(false);
+  });
+
+  it('a Pages → Workers migration\'s first run does not "roll back" to the Worker\'s earlier failed upload', async () => {
+    const cfState = { zones: [ZONE], workerDomains: [], workerDeployments: CF_WITH_VERSION.workerDeployments };
+    const h = await harness({ cfState, inputs: { lighthouse: true, lighthouseMaxUrls: 1 }, onProc: liveFails });
+    await expect(runAll(h.ctx)).rejects.toThrow(/NOT rolled back: no prior production version on Worker geo-site/);
+    expect(wranglerCalls(h).some((c) => c.args.includes('rollback'))).toBe(false);
+    expect(await readFile(h.summary, 'utf8')).toContain('is not something GeoHarness can roll back to');
   });
 
   it('rollback-on-failure: false leaves the build live and says so', async () => {

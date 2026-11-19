@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LIGHTHOUSE_CATEGORIES, lighthouseRc, lighthouseUrls } from '../src/lib/lighthouse-rc.js';
-import { lighthouseFailures } from '../src/lib/lighthouse-report.js';
+import { lighthouseFailures, lighthouseMedians } from '../src/lib/lighthouse-report.js';
 
 const SITEMAP = '<urlset><url><loc>https://geo.example.com/</loc></url><url><loc>https://geo.example.com/docs/</loc></url><url><loc>https://geo.example.com/a/</loc></url></urlset>';
 
@@ -55,6 +55,18 @@ describe('lighthouseFailures', () => {
   });
 
   it('rejects a report that is not a Lighthouse result', () => {
+    expect(() => lighthouseMedians([{ nope: true }])).toThrow(/requestedUrl/);
     expect(() => lighthouseFailures([{ nope: true }])).toThrow(/requestedUrl/);
+  });
+});
+
+describe('lighthouseMedians', () => {
+  it('gives every audited URL its median score per category and the ids of audits failing in most runs', () => {
+    const a = 'https://geo.example.com/';
+    const b = 'https://geo.example.com/docs/';
+    expect(lighthouseMedians([lhr(a, 0.92, 0, 0.97), lhr(a, 0.92, 0), lhr(a, 1, 1), lhr(b, 1, 1), lhr(b, 1, 1), lhr(b, 1, 1)])).toEqual([
+      { url: a, scores: { performance: 100, accessibility: 100, 'best-practices': 100, seo: 92 }, failingAudits: ['robots-txt'] },
+      { url: b, scores: { performance: 100, accessibility: 100, 'best-practices': 100, seo: 100 }, failingAudits: [] },
+    ]);
   });
 });

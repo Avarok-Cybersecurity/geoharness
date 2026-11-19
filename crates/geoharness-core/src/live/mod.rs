@@ -28,6 +28,11 @@ pub const AI_AGENTS: [&str; 8] = [
     "PerplexityBot",
     "Perplexity-User",
 ];
+/// How much of each live body's start (and end) the host keeps for the core,
+/// in UTF-16 code units (the host slices JavaScript strings). The build-meta
+/// expectation must be met inside this window, so the static audit checks
+/// every page against it before deploy. Exported to the host by `gen-types`.
+pub const BODY_PREFIX_CHARS: usize = 8192;
 /// Routes sampled for the Accept matrix: `/` plus up to this many others.
 pub const SAMPLED_ROUTES: usize = 4;
 

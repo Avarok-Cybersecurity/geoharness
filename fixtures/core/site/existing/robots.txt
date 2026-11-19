@@ -1,3 +1,8 @@
 # The site's own rules
 User-agent: BadBot
 Disallow: /
+
+# Everyone else, as geoharness.toml states it too
+User-agent: *
+Allow: /
+Disallow: /private/

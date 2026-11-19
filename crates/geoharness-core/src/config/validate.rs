@@ -118,6 +118,25 @@ fn content(c: &SiteConfig, r: &mut Report) {
             format!("{g:?} must start with '/'")
         });
     }
+    for (route, sources) in &c.content.sources {
+        let key = format!("content.sources.{route:?}");
+        r.check(is_path_glob(route), &key, || {
+            format!("route glob {route:?} must start with '/'")
+        });
+        r.check(!sources.is_empty(), &key, || {
+            "lists no source globs".to_owned()
+        });
+        for (i, g) in sources.iter().enumerate() {
+            r.check(is_source_glob(g), &format!("{key}[{i}]"), || {
+                format!("{g:?} must be a path relative to the site directory (no leading '/', ':' or '!', no '..')")
+            });
+        }
+    }
+}
+
+/// A git pathspec glob relative to the site directory; never pathspec magic.
+fn is_source_glob(s: &str) -> bool {
+    single_line(s) && !s.starts_with(['/', ':', '!']) && !s.split('/').any(|seg| seg == "..")
 }
 
 fn llms(c: &SiteConfig, r: &mut Report) {

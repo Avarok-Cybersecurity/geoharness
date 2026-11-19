@@ -14,10 +14,18 @@ pub struct SiteInput {
     pub config: SiteConfig,
     /// Commit SHA.
     pub build_id: String,
+    /// Host names the site is served on (the action's `domains`, lower case,
+    /// no port); each gets its own tagged rewrite rules. Includes the
+    /// origin's host.
+    pub hosts: Vec<String>,
     /// Only the names in `config.env`; the core re-checks.
     pub env: BTreeMap<String, String>,
     pub pages: Vec<PageInput>,
     pub existing: Existing,
+    /// Newest commit date (`YYYY-MM-DDTHH:MM:SSZ`, UTC) of each source glob
+    /// of `config.content.sources` that matched a committed file; a glob
+    /// matching none is left out.
+    pub source_lastmod: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

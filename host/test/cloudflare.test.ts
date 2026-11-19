@@ -21,17 +21,17 @@ const OTHER_HOST = { ...FOREIGN, id: 'other-host', description: 'geoharness:geo.
 let cf: FakeCf | undefined;
 afterEach(async () => { await cf?.close(); cf = undefined; });
 
-async function zoneRun(fake: FakeCf): Promise<void> {
+async function zoneRun(fake: FakeCf, domains: string[] = ['geo.example.com']): Promise<void> {
   const io = testIO({ http: nodeHttp, env: {} });
   const core = fakeCore({ score: 90, blockingFails: false });
   const config = sampleConfig('https://geo.example.com');
-  const processed = core.processSite({ config, buildId: 'x', env: {}, pages: [{ route: '/', file: 'index.html', html: '<head></head>' }], existing: {} });
+  const processed = core.processSite({ config, buildId: 'x', hosts: domains, sourceLastmod: {}, env: {}, pages: [{ route: '/', file: 'index.html', html: '<head></head>' }], existing: {} });
   if (!processed.ok) throw new Error('fake core failed');
   const ctx = makeContext({
-    io, core, inputs: makeInputs({}), cfBaseUrl: fake.baseUrl,
+    io, core, inputs: makeInputs({ domains }), cfBaseUrl: fake.baseUrl,
     state: {
       config,
-      access: { zone: ZONE, negotiation: 'rules', optimizations: ['email_obfuscation', 'early_hints', 'smart_tiered_cache', 'zstd', 'bot_fight_mode', 'ai_bots_protection'] },
+      access: { zone: { ...ZONE, plan: undefined }, negotiation: 'rules', optimizations: ['email_obfuscation', 'early_hints', 'smart_tiered_cache', 'zstd', 'bot_fight_mode', 'ai_bots_protection'], takeover: [] },
       build: { outputDir: '/out', notFoundHandling: '404-page' },
       processed: { pages: processed.value.pages, rewriteRules: processed.value.rewriteRules, warnings: [], files: [] },
     },
@@ -86,6 +86,21 @@ describe('zone stage against the recording Cloudflare API', () => {
     expect(cf.state.settings['zone1:email_obfuscation']).toBe('off');
   });
 
+  it('writes every domain\'s rules, and a second host does not disturb the first host\'s or foreign rules', async () => {
+    const both = [...domains, { hostname: 'www.example.com', service: 'geo-site', zone_id: 'zone1' }];
+    cf = await startFakeCf({ zones: [ZONE], workerDomains: both, rulesets: { 'zone1:http_request_transform': [FOREIGN] } });
+    await zoneRun(cf, ['geo.example.com', 'www.example.com']);
+    const rules = cf.state.rulesets['zone1:http_request_transform'] ?? [];
+    expect(rules.map((r) => r.description)).toEqual([FOREIGN.description,
+      'geoharness:geo.example.com dir', 'geoharness:geo.example.com bare', 'geoharness:geo.example.com html',
+      'geoharness:www.example.com dir', 'geoharness:www.example.com bare', 'geoharness:www.example.com html']);
+    const zstd = cf.state.rulesets['zone1:http_response_compression'] ?? [];
+    expect(zstd.map((r) => r.expression)).toEqual(['(http.host in {"geo.example.com" "www.example.com"})']);
+    cf.requests.length = 0;
+    await zoneRun(cf, ['geo.example.com', 'www.example.com']);
+    expect(mutations(cf.requests)).toEqual([]);
+  });
+
   it('fails when a domain is not attached to the Worker after deploy', async () => {
     cf = await startFakeCf({ zones: [ZONE], workerDomains: [] });
     await expect(zoneRun(cf)).rejects.toThrow(/not a Custom Domain of Worker geo-site/);
@@ -124,10 +139,17 @@ describe('tagged rule planning', () => {
   });
 
   it('refuses to write an untagged rule', () => {
-    expect(() => planTaggedRules([], [{ description: 'mine' }], 'geoharness:a.com')).toThrow(/not tagged/);
+    expect(() => planTaggedRules([], [{ description: 'mine' }], ['geoharness:a.com'])).toThrow(/not tagged/);
   });
 
   it('plans nothing for an absent entrypoint with nothing to write', () => {
-    expect(planTaggedRules(undefined, [], 'geoharness:a.com').changed).toBe(false);
+    expect(planTaggedRules(undefined, [], ['geoharness:a.com']).changed).toBe(false);
+  });
+
+  it('owns the rules of every tag it is given and keeps the rest in place', () => {
+    const plan = planTaggedRules([{ description: 'x' }, { description: 'geoharness:a.com 1' }, { description: 'geoharness:b.com 1' }],
+      [{ description: 'geoharness:a.com 2' }, { description: 'geoharness:b.com 2' }], ['geoharness:a.com', 'geoharness:b.com']);
+    expect(plan.rules.map((r) => r.description)).toEqual(['x', 'geoharness:a.com 2', 'geoharness:b.com 2']);
+    expect([plan.added, plan.removed]).toEqual([2, 2]);
   });
 });

@@ -2,7 +2,9 @@ import { createProxiedCname, listDnsRecords } from '../io/cloudflare/dns.js';
 import { addPagesDomain, listPagesDomains, pagesProjectExists } from '../io/cloudflare/pages.js';
 import { findZoneForHost } from '../io/cloudflare/zones.js';
 import { need, primaryHost, type StageContext } from './context.js';
+import { takeOverHosts } from './dns-takeover.js';
 import { recordPrevious } from './rollback.js';
+import { checkRuleBudget } from './zone.js';
 import { runToolOk, wranglerEnv } from './tools.js';
 import { workerConfig } from './worker-config.js';
 
@@ -22,11 +24,21 @@ async function previousSitemap(ctx: StageContext, host: string): Promise<string 
 async function deployWorkers(ctx: StageContext): Promise<void> {
   const access = need(ctx.state, 'access', 'deploy');
   const run = { cwd: ctx.inputs.sitePath, env: wranglerEnv(ctx), timeoutMs: DEPLOY_TIMEOUT_MS };
-  const config = await workerConfig(ctx, 'deploy');
+  const config = await workerConfig(ctx, 'deploy', { routes: true });
   if (config.repoOwned && access.negotiation === 'negotiate-worker') {
     ctx.io.log.warn('The repo owns its Worker: import { negotiate } from edge/negotiate.mjs in it so agents get markdown twins.');
   }
   ctx.state.previousDeployment = await recordPrevious(ctx, config.workerName);
+  if (access.takeover.length > 0) {
+    if (config.repoOwned || access.zone === undefined) {
+      throw new Error('takeover-dns works only with the Worker GeoHarness generates; this repo owns its wrangler config. ' +
+        `Move ${access.takeover.join(', ')} by hand as preflight described, then rerun without takeover-dns.`);
+    }
+    // The Custom Domain needs an existing Worker: upload without routes, then move the hosts onto it.
+    const upload = await workerConfig(ctx, 'deploy', { routes: false });
+    await runToolOk(ctx, 'wrangler', ['deploy', '--config', upload.file], run);
+    ctx.state.dnsTakeover = await takeOverHosts(ctx, access.zone.id, ctx.inputs.projectName, access.takeover);
+  }
   await runToolOk(ctx, 'wrangler', ['deploy', '--config', config.file], run);
 }
 
@@ -63,6 +75,7 @@ async function deployPages(ctx: StageContext): Promise<void> {
 }
 
 export async function deployStage(ctx: StageContext): Promise<void> {
+  await checkRuleBudget(ctx);
   const host = primaryHost(need(ctx.state, 'config', 'deploy'));
   const prev = await previousSitemap(ctx, host);
   if (prev !== undefined) ctx.state.previousSitemap = prev;

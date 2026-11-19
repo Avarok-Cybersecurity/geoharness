@@ -73,6 +73,13 @@ pub const BROKEN_LINKS: Check = Check {
     severity: Blocking,
     citations: &["google-ai-guide-2026"],
 };
+pub const BUILD_META_EARLY: Check = Check {
+    id: "index.build_meta_early",
+    title: "Build meta sits where the live check reads",
+    category: "indexability",
+    severity: Blocking,
+    citations: &["cf-workers-static-assets"],
+};
 pub const LIVE_BUILD: Check = Check {
     id: "index.live_build",
     title: "Live site serves this build",
@@ -190,6 +197,7 @@ pub const CHECKS: &[&Check] = &[
     &CANONICAL,
     &BROKEN_LINKS,
     &LIVE_BUILD,
+    &BUILD_META_EARLY,
     &CSP_ROBOTS,
     &LIVE_BEACON,
     &TWIN,

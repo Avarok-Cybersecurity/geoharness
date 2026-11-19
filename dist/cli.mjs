@@ -59,9 +59,11 @@ function buildMetaContent(html) {
   return void 0;
 }
 
+// host/src/core/types.ts
+var BODY_PREFIX_CHARS = 8192;
+
 // host/src/stages/live.ts
 var LIVE_TIMEOUT_MS = 2e4;
-var BODY_PREFIX_CHARS = 8192;
 var LIVE_ATTEMPTS = 3;
 var LIVE_RETRY_DELAY_MS = 2e3;
 async function observe(io, req) {
@@ -332,6 +334,9 @@ function readInputs(env) {
   const accountId = deploy ? required("cloudflare-account-id") : "";
   const rollbackOnFailure = deploy ? bool("rollback-on-failure") : false;
   if (accountId !== "" && !ACCOUNT.test(accountId)) problems.push("cloudflare-account-id must be 32 hex characters");
+  const takeoverRaw = raw("takeover-dns");
+  if (takeoverRaw !== void 0 && takeoverRaw !== "true" && takeoverRaw !== "false") problems.push(`takeover-dns must be "true" or "false", got "${takeoverRaw}"`);
+  const takeoverDns = takeoverRaw === void 0 ? void 0 : takeoverRaw === "true";
   const workspace = env.get("GITHUB_WORKSPACE") ?? "";
   if (workspace === "") problems.push("GITHUB_WORKSPACE is not set");
   const sitePathRaw = required("site-path");
@@ -344,6 +349,7 @@ function readInputs(env) {
   const targetRaw = required("target");
   if (targetRaw !== "" && targetRaw !== "workers" && targetRaw !== "pages") problems.push('target must be "workers" or "pages"');
   const target = targetRaw === "pages" ? "pages" : "workers";
+  if (target === "pages" && takeoverRaw !== void 0) problems.push("takeover-dns applies only to target workers (the pages target never replaces DNS records)");
   const projectName = required("project-name");
   if (projectName !== "" && !PROJECT.test(projectName)) problems.push("project-name must be lower-case letters, digits and hyphens (\u226463)");
   const domains = (raw("domains") ?? "").split("\n").map((d) => d.trim().toLowerCase()).filter((d) => d !== "");
@@ -361,6 +367,13 @@ function readInputs(env) {
   if (!SHA.test(buildId)) problems.push("GITHUB_SHA must be a 40-character commit SHA");
   const stateDir = env.get("GEOHARNESS_STATE_DIR") ?? "";
   if (stateDir === "") problems.push("GEOHARNESS_STATE_DIR is not set (action.yml sets it to $RUNNER_TEMP/geoharness)");
+  const runnerFile = (name) => {
+    const v = env.get(name) ?? "";
+    if (v === "") problems.push(`${name} is not set (GitHub Actions sets it; a local run must point it at a writable file)`);
+    return v;
+  };
+  const summaryFile = runnerFile("GITHUB_STEP_SUMMARY");
+  const outputFile = runnerFile("GITHUB_OUTPUT");
   if (problems.length > 0) throw new InputError(problems);
   return {
     apiToken,
@@ -379,8 +392,11 @@ function readInputs(env) {
     optimizations: opt.ok ? opt.value : /* @__PURE__ */ new Set(),
     deploy,
     rollbackOnFailure,
+    takeoverDns,
     buildId,
-    stateDir
+    stateDir,
+    summaryFile,
+    outputFile
   };
 }
 
@@ -639,11 +655,15 @@ var nodeNet = {
 
 // host/src/io/node/proc.ts
 import { spawn } from "node:child_process";
+
+// host/src/lib/redact.ts
 function redactAll(text, secrets) {
   let out = text;
   for (const s of secrets) if (s.length > 0) out = out.split(s).join("***");
   return out;
 }
+
+// host/src/io/node/proc.ts
 var STOP_GRACE_MS = 5e3;
 var OUTPUT_KEEP_CHARS = 2e4;
 var live = /* @__PURE__ */ new Set();
@@ -1415,12 +1435,19 @@ async function listDnsRecords(cf, zoneId, name) {
       type: asString(r.type, "dns.type"),
       name: asString(r.name, "dns.name"),
       content: asString(r.content, "dns.content"),
-      proxied: r.proxied === true
+      proxied: r.proxied === true,
+      ttl: typeof r.ttl === "number" ? r.ttl : 1
     };
   });
 }
 async function createProxiedCname(cf, zoneId, name, target) {
   await cf.call("POST", `/zones/${zoneId}/dns_records`, { type: "CNAME", name, content: target, proxied: true, ttl: 1 });
+}
+async function deleteDnsRecord(cf, zoneId, id) {
+  await cf.call("DELETE", `/zones/${zoneId}/dns_records/${encodeURIComponent(id)}`);
+}
+async function recreateDnsRecord(cf, zoneId, r) {
+  await cf.call("POST", `/zones/${zoneId}/dns_records`, { type: r.type, name: r.name, content: r.content, proxied: r.proxied, ttl: r.ttl });
 }
 
 // host/src/io/cloudflare/pages.ts
@@ -1468,10 +1495,105 @@ async function findZoneForHost(cf, host) {
     const first = items[0];
     if (first !== void 0) {
       const z = asObject(first, "zone");
-      return { id: asString(z.id, "zone.id"), name: asString(z.name, "zone.name") };
+      const plan = isObject(z.plan) && typeof z.plan.legacy_id === "string" ? z.plan.legacy_id : void 0;
+      return { id: asString(z.id, "zone.id"), name: asString(z.name, "zone.name"), plan };
     }
   }
   return void 0;
+}
+
+// host/src/io/cloudflare/workers-domains.ts
+async function listWorkerDomains(cf, accountId, hostname) {
+  const items = await cf.list(`/accounts/${accountId}/workers/domains?hostname=${encodeURIComponent(hostname)}`, 50);
+  return items.map((u, i) => {
+    const d = asObject(u, `workers.domains[${i}]`);
+    return { hostname: asString(d.hostname, "hostname"), service: asString(d.service, "service"), zoneId: asString(d.zone_id, "zone_id") };
+  });
+}
+async function attachWorkerDomain(cf, accountId, d) {
+  await cf.call("PUT", `/accounts/${accountId}/workers/domains`, { hostname: d.hostname, service: d.service, zone_id: d.zoneId, environment: "production" });
+}
+
+// host/src/stages/dns-check.ts
+var BLOCKING_TYPES = /* @__PURE__ */ new Set(["A", "AAAA", "CNAME"]);
+var blockingRecords = (records) => records.filter((r) => BLOCKING_TYPES.has(r.type));
+var describeRecord = (r) => `${r.type} \u2192 ${r.content}${r.proxied ? " (proxied)" : ""}`;
+function pagesProjectOf(r) {
+  return r.type === "CNAME" && r.content.endsWith(".pages.dev") ? r.content.slice(0, -".pages.dev".length) : void 0;
+}
+function conflictMessage(ctx, zone, conflicts) {
+  const { accountId, projectName, takeoverDns } = ctx.inputs;
+  const lines = [
+    'These domains still have their own DNS records, so wrangler would upload the Worker and then fail to bind them as Custom Domains (Cloudflare error 100117, "already has externally managed DNS records"):',
+    ...conflicts.flatMap((c) => c.records.map((r) => `  - ${c.host}: ${describeRecord(r)}`)),
+    "To move them without downtime, for each host in turn and back to back (the Worker must exist; a run with takeover-dns: true uploads it first):",
+    ...conflicts.flatMap((c) => [
+      ...c.records.map((r) => `  DELETE /zones/${zone.id}/dns_records/${r.id}`),
+      `  PUT /accounts/${accountId}/workers/domains ${JSON.stringify({ hostname: c.host, service: projectName, zone_id: zone.id, environment: "production" })}`
+    ]),
+    "then remove each host from the Pages project (or whatever the records served) so the edge stops mixing the two, and rerun."
+  ];
+  lines.push(takeoverDns === false ? "takeover-dns is false: move them by hand as above; GeoHarness will not change these records." : "Or set takeover-dns: true and GeoHarness does the DELETE + PUT pairs itself, right after uploading the Worker.");
+  return lines.join("\n");
+}
+async function checkHostDns(ctx, zone) {
+  const { accountId, projectName, domains } = ctx.inputs;
+  const conflicts = [];
+  for (const host of domains) {
+    const bound = (await listWorkerDomains(ctx.cf, accountId, host)).find((d) => d.hostname === host);
+    if (bound?.service === projectName) continue;
+    if (bound !== void 0) {
+      throw new Error(`${host} is a Custom Domain of another Worker, ${bound.service}; GeoHarness never takes a host from another Worker. Detach it there (or deploy with project-name: ${bound.service}) and rerun.`);
+    }
+    const records = blockingRecords(await listDnsRecords(ctx.cf, zone.id, host));
+    if (records.length > 0) conflicts.push({ host, records });
+  }
+  if (conflicts.length === 0) return [];
+  if (ctx.inputs.takeoverDns !== true) throw new Error(conflictMessage(ctx, zone, conflicts));
+  const hosts = conflicts.map((c) => c.host);
+  ctx.io.log.warn(`takeover-dns: true \u2014 after uploading the Worker, ${hosts.join(", ")} move from their DNS records to Worker ${projectName}`);
+  return hosts;
+}
+
+// host/src/stages/dns-takeover.ts
+async function takeOverHosts(ctx, zoneId, worker, hosts) {
+  const done = [];
+  const pages = /* @__PURE__ */ new Set();
+  for (const host of hosts) {
+    const records = blockingRecords(await listDnsRecords(ctx.cf, zoneId, host));
+    const deleted = [];
+    try {
+      for (const r of records) {
+        await deleteDnsRecord(ctx.cf, zoneId, r.id);
+        deleted.push(r);
+      }
+      await attachWorkerDomain(ctx.cf, ctx.inputs.accountId, { hostname: host, service: worker, zoneId });
+    } catch (e) {
+      const restored = await restore(ctx, zoneId, deleted);
+      throw new Error(`DNS takeover: binding ${host} to Worker ${worker} failed (${describeError(e)}); ${restored}`, { cause: e });
+    }
+    for (const r of records) {
+      const p = pagesProjectOf(r);
+      if (p !== void 0) pages.add(p);
+    }
+    const line = `${host}: deleted ${records.map(describeRecord).join(", ")}, now a Custom Domain of Worker ${worker}`;
+    ctx.io.log.info(`DNS takeover: ${line}`);
+    done.push(line);
+  }
+  for (const p of pages) {
+    const msg = `remove these hosts from Pages project ${p} (Custom domains) now: until then the edge can still route some requests to Pages`;
+    ctx.io.log.warn(msg);
+    done.push(msg);
+  }
+  return done;
+}
+async function restore(ctx, zoneId, deleted) {
+  try {
+    for (const r of deleted) await recreateDnsRecord(ctx.cf, zoneId, r);
+    return deleted.length === 0 ? "no record had been deleted" : "restored its DNS records";
+  } catch (e) {
+    return `restoring its DNS records ALSO failed (${describeError(e)}); recreate by hand: ${deleted.map((r) => `${r.name} ${describeRecord(r)}`).join("; ")}`;
+  }
 }
 
 // host/src/io/cloudflare/workers-deployments.ts
@@ -1488,6 +1610,33 @@ async function currentWorkerVersion(cf, accountId, name) {
   if (newest === void 0) return void 0;
   const versions = asArray(newest.versions, "deployment.versions").filter(isObject).map((v) => ({ id: asString(v.version_id, "version_id"), share: asNumber(v.percentage, "percentage") })).sort((a, b) => b.share - a.share);
   return versions[0]?.id;
+}
+
+// host/src/lib/wrangler-error.ts
+var HINTS = {
+  100117: 'the host name still has its own DNS records (e.g. a CNAME to Pages); see the takeover-dns input and "Moving from Pages to Workers" in the README'
+};
+function errorBlock(output) {
+  const lines = output.split("\n");
+  const start = lines.findIndex((l) => l.includes("[ERROR]"));
+  if (start < 0) return [];
+  const block = [(lines[start] ?? "").replace(/^.*?\[ERROR\]\s*/, "")];
+  for (const line of lines.slice(start + 1)) {
+    if (line.includes("If you think this is a bug") || line.includes("[ERROR]")) break;
+    if (line.trim() !== "") block.push(line.trim());
+    if (block.length >= 6) break;
+  }
+  return block;
+}
+function toolFailure(bin, subcommand, r, secrets) {
+  const head = `${bin} ${subcommand} exited with ${r.code}`;
+  const output = redactAll(`${r.stderr}
+${r.stdout}`, secrets);
+  const block = errorBlock(output);
+  if (block.length === 0) return `${head} (no [ERROR] line in its output)`;
+  const codes = [...new Set([...block.join("\n").matchAll(/\[code: (\d+)\]/g)].map((m) => Number(m[1])))];
+  const notes = codes.map((c) => `Cloudflare error ${c}${HINTS[c] === void 0 ? "" : `: ${HINTS[c]}`}`);
+  return [`${head}:`, ...block.map((l) => `  ${l}`), ...notes].join("\n");
 }
 
 // host/src/stages/tools.ts
@@ -1508,7 +1657,7 @@ async function runTool(ctx, tool, args, run) {
 }
 async function runToolOk(ctx, tool, args, run) {
   const r = await runTool(ctx, tool, args, run);
-  if (r.code !== 0) throw new Error(`${TOOLS[tool].bin} ${args[0] ?? ""} exited with ${r.code}`);
+  if (r.code !== 0) throw new Error(toolFailure(TOOLS[tool].bin, args[0] ?? "", r, [ctx.inputs.apiToken]));
   return r;
 }
 function wranglerEnv(ctx) {
@@ -1521,16 +1670,34 @@ async function recordPrevious(ctx, workerName) {
   const { accountId, projectName, target } = ctx.inputs;
   if (target === "pages") return { target: "pages", deploymentId: await currentPagesProduction(ctx.cf, accountId, projectName) };
   if (workerName === void 0) return { target: "unknown", reason: "the repo-owned wrangler config states no Worker name" };
-  return { target: "workers", workerName, versionId: await currentWorkerVersion(ctx.cf, accountId, workerName) };
+  const versionId = await currentWorkerVersion(ctx.cf, accountId, workerName);
+  if (versionId === void 0) return { target: "workers", workerName, versionId };
+  if (!await servedAnyHost(ctx, workerName)) {
+    const hosts = ctx.inputs.domains.join(", ");
+    return { target: "none", reason: `no prior production version on Worker ${workerName}: none of ${hosts} was a Custom Domain of it before this run. GeoHarness rolls back only to earlier versions of this Worker; whatever served them before (a Pages project, another origin) is not something GeoHarness can roll back to \u2014 restore it by hand if needed` };
+  }
+  return { target: "workers", workerName, versionId };
+}
+async function servedAnyHost(ctx, workerName) {
+  for (const host of ctx.inputs.domains) {
+    const bound = await listWorkerDomains(ctx.cf, ctx.inputs.accountId, host);
+    if (bound.some((d) => d.hostname === host && d.service === workerName)) return true;
+  }
+  return false;
 }
 async function rollBack(ctx, why) {
   const prev = ctx.state.previousDeployment;
   if (prev === void 0) return { performed: false, detail: "no previous deployment was recorded" };
   if (prev.target === "unknown") return { performed: false, detail: `cannot roll back: ${prev.reason}` };
+  if (prev.target === "none") return { performed: false, detail: prev.reason };
   const message = `geoharness: ${why} (${ctx.inputs.buildId.slice(0, 12)})`.slice(0, 100);
   try {
     if (prev.target === "workers") {
       if (prev.versionId === void 0) return { performed: false, detail: `first deploy of Worker ${prev.workerName}: no previous version to roll back to` };
+      const now = await currentWorkerVersion(ctx.cf, ctx.inputs.accountId, prev.workerName);
+      if (now === prev.versionId) {
+        return { performed: false, detail: `Worker ${prev.workerName} still serves version ${now}, the one recorded before this deploy: there is nothing earlier to roll back to` };
+      }
       const r = await runTool(
         ctx,
         "wrangler",
@@ -1545,6 +1712,205 @@ async function rollBack(ctx, why) {
   } catch (e) {
     return { performed: false, detail: `rollback failed: ${e instanceof Error ? e.message : String(e)}` };
   }
+}
+
+// host/src/io/cloudflare/rulesets.ts
+var READ_ONLY_RULE_FIELDS = ["version", "last_updated", "categories"];
+function writableRule(rule) {
+  const out = {};
+  for (const [k, v] of Object.entries(rule)) if (!READ_ONLY_RULE_FIELDS.includes(k)) out[k] = v;
+  return out;
+}
+async function getEntrypointRules(cf, zoneId, phase) {
+  try {
+    const result = asObject(await cf.call("GET", `/zones/${zoneId}/rulesets/phases/${phase}/entrypoint`), "ruleset");
+    const rules = result.rules === void 0 ? [] : asArray(result.rules, "ruleset.rules");
+    return rules.map((r, i) => asObject(r, `ruleset.rules[${i}]`));
+  } catch (e) {
+    if (e instanceof CloudflareApiError && e.status === 404) return void 0;
+    throw e;
+  }
+}
+async function putEntrypointRules(cf, zoneId, phase, rules) {
+  await cf.call("PUT", `/zones/${zoneId}/rulesets/phases/${phase}/entrypoint`, { rules: rules.map(writableRule) });
+}
+
+// host/src/lib/rule-budget.ts
+var REWRITE_RULE_LIMITS = { free: 10, pro: 25, business: 50, enterprise: 300 };
+function ruleBudgetProblem(zone, plan, domains) {
+  const limit = zone.plan === void 0 ? void 0 : REWRITE_RULE_LIMITS[zone.plan];
+  if (limit === void 0) return void 0;
+  const ours = plan.rules.length - plan.others.length;
+  if (plan.rules.length <= limit) return void 0;
+  const names2 = plan.others.map((r) => typeof r.description === "string" && r.description !== "" ? r.description : typeof r.id === "string" ? r.id : "?");
+  return `zone ${zone.name} (${zone.plan} plan) allows ${limit} URL Rewrite rules, but this deploy needs ${plan.rules.length}: GeoHarness's ${ours} for ${domains} domains (3 each) plus the zone's ${plan.others.length} other rules (${names2.join(", ")}). Remove rules you no longer need, or list fewer domains (each one gets its own rules), and rerun. Nothing was deployed.`;
+}
+
+// host/src/lib/tagged-rules.ts
+function ruleTag(host) {
+  return `geoharness:${host}`;
+}
+function isTagged(description, tag) {
+  if (typeof description !== "string" || !description.startsWith(tag)) return false;
+  const next = description.charAt(tag.length);
+  return next === "" || !/[a-z0-9.-]/i.test(next);
+}
+var COMPARED = ["description", "expression", "action", "action_parameters", "enabled"];
+function fingerprint(rule) {
+  const picked = {};
+  for (const k of COMPARED) picked[k] = rule[k];
+  return canonicalJson(picked);
+}
+function planTaggedRules(existing, desired, tags) {
+  const owned = (description) => tags.some((t) => isTagged(description, t));
+  for (const d of desired) {
+    if (!owned(d.description)) throw new Error(`desired rule "${String(d.description)}" is not tagged ${tags.join(" or ")}`);
+  }
+  const current = existing ?? [];
+  const ours = current.filter((r) => owned(r.description));
+  const others = current.filter((r) => !owned(r.description));
+  const same = ours.length === desired.length && ours.every((r, i) => {
+    const d = desired[i];
+    return d !== void 0 && fingerprint(r) === fingerprint(d);
+  });
+  if (same) return { changed: false, rules: current, added: 0, removed: 0, others };
+  return { changed: true, rules: [...others, ...desired], added: desired.length, removed: ours.length, others };
+}
+
+// host/src/io/cloudflare/bot-management.ts
+async function getBotManagement(cf, zoneId) {
+  return asObject(await cf.call("GET", `/zones/${zoneId}/bot_management`), "bot_management");
+}
+async function putBotManagement(cf, zoneId, patch) {
+  await cf.call("PUT", `/zones/${zoneId}/bot_management`, patch);
+}
+
+// host/src/io/cloudflare/cache.ts
+var SMART_TIERED = "tiered_cache_smart_topology_enable";
+async function getSmartTieredCache(cf, zoneId) {
+  return asObject(await cf.call("GET", `/zones/${zoneId}/cache/${SMART_TIERED}`), SMART_TIERED).value;
+}
+async function setSmartTieredCache(cf, zoneId, value) {
+  await cf.call("PATCH", `/zones/${zoneId}/cache/${SMART_TIERED}`, { value });
+}
+
+// host/src/io/cloudflare/compression.ts
+function zstdCompressionRule(hosts, tag) {
+  return {
+    description: `${tag} zstd`,
+    expression: `(http.host in {${hosts.map((h) => `"${h}"`).join(" ")}})`,
+    action: "compress_response",
+    action_parameters: { algorithms: [{ name: "zstd" }, { name: "brotli" }, { name: "gzip" }] },
+    enabled: true
+  };
+}
+
+// host/src/io/cloudflare/settings.ts
+async function getZoneSetting(cf, zoneId, id) {
+  return asObject(await cf.call("GET", `/zones/${zoneId}/settings/${id}`), `setting ${id}`).value;
+}
+async function setZoneSetting(cf, zoneId, id, value) {
+  await cf.call("PATCH", `/zones/${zoneId}/settings/${id}`, { value });
+}
+
+// host/src/stages/zone-settings.ts
+var SETTINGS = {
+  email_obfuscation: { id: "email_obfuscation", value: "off" },
+  rocket_loader: { id: "rocket_loader", value: "off" },
+  early_hints: { id: "early_hints", value: "on" },
+  http3: { id: "http3", value: "on" },
+  brotli: { id: "brotli", value: "on" }
+};
+async function applyOptimizations(ctx, t, enabled) {
+  const changes = [];
+  const on = new Set(enabled);
+  for (const [opt, s] of Object.entries(SETTINGS)) {
+    if (!on.has(opt)) continue;
+    const current = await getZoneSetting(ctx.cf, t.zoneId, s.id);
+    if (current === s.value) continue;
+    await setZoneSetting(ctx.cf, t.zoneId, s.id, s.value);
+    changes.push(`${s.id}: ${String(current)} \u2192 ${s.value}`);
+  }
+  if (on.has("smart_tiered_cache")) {
+    const current = await getSmartTieredCache(ctx.cf, t.zoneId);
+    if (current !== "on") {
+      await setSmartTieredCache(ctx.cf, t.zoneId, "on");
+      changes.push(`smart tiered cache: ${String(current)} \u2192 on`);
+    }
+  }
+  if (on.has("zstd")) {
+    const existing = await getEntrypointRules(ctx.cf, t.zoneId, "http_response_compression");
+    const plan = planTaggedRules(existing, [zstdCompressionRule(t.hosts, t.tag)], [t.tag]);
+    if (plan.changed) {
+      await putEntrypointRules(ctx.cf, t.zoneId, "http_response_compression", plan.rules);
+      changes.push(`compression rule (zstd): ${plan.removed} replaced, ${plan.added} written`);
+    }
+  }
+  if (on.has("bot_fight_mode") || on.has("ai_bots_protection")) {
+    const current = await getBotManagement(ctx.cf, t.zoneId);
+    const patch = {};
+    if (on.has("bot_fight_mode") && current.fight_mode !== false) patch.fight_mode = false;
+    if (on.has("ai_bots_protection") && current.ai_bots_protection !== "disabled") patch.ai_bots_protection = "disabled";
+    if (Object.keys(patch).length > 0) {
+      await putBotManagement(ctx.cf, t.zoneId, patch);
+      changes.push(`bot management: ${JSON.stringify(patch)}`);
+    }
+  }
+  return changes;
+}
+
+// host/src/stages/zone.ts
+function rewriteRuleToCf(r) {
+  return {
+    description: r.description,
+    expression: r.expression,
+    action: "rewrite",
+    action_parameters: { uri: { path: { expression: r.pathExpression } } },
+    enabled: true
+  };
+}
+async function planRewriteRules(ctx, zoneId, rules) {
+  const existing = await getEntrypointRules(ctx.cf, zoneId, "http_request_transform");
+  return { plan: planTaggedRules(existing, rules.map(rewriteRuleToCf), ctx.inputs.domains.map(ruleTag)), existing };
+}
+async function checkRuleBudget(ctx) {
+  const access = need(ctx.state, "access", "deploy");
+  const processed = need(ctx.state, "processed", "deploy");
+  if (access.zone === void 0 || access.negotiation !== "rules") return;
+  const { plan } = await planRewriteRules(ctx, access.zone.id, processed.rewriteRules);
+  const problem = ruleBudgetProblem(access.zone, plan, ctx.inputs.domains.length);
+  if (problem !== void 0) throw new Error(problem);
+}
+async function checkCustomDomains(ctx) {
+  for (const domain of ctx.inputs.domains) {
+    const attached = await listWorkerDomains(ctx.cf, ctx.inputs.accountId, domain);
+    if (!attached.some((d) => d.hostname === domain && d.service === ctx.inputs.projectName)) {
+      throw new Error(`${domain} is not a Custom Domain of Worker ${ctx.inputs.projectName} after deploy`);
+    }
+  }
+}
+async function zoneStage(ctx) {
+  const config = need(ctx.state, "config", "zone");
+  const access = need(ctx.state, "access", "zone");
+  const processed = need(ctx.state, "processed", "zone");
+  const built = need(ctx.state, "build", "zone");
+  const changes = [];
+  ctx.state.zoneChanges = changes;
+  if (ctx.inputs.target === "workers" && built.repoWranglerConfig === void 0) await checkCustomDomains(ctx);
+  if (access.zone === void 0) {
+    ctx.io.log.warn("zone stage: no zone access; markdown negotiation is served by the negotiate Worker (100k requests/day, then 429)");
+    return;
+  }
+  const tags = ctx.inputs.domains.map(ruleTag);
+  const { plan, existing } = await planRewriteRules(ctx, access.zone.id, processed.rewriteRules);
+  if (plan.changed) {
+    await putEntrypointRules(ctx.cf, access.zone.id, "http_request_transform", plan.rules);
+    changes.push(`URL Rewrite rules (${tags.join(", ")}): ${plan.removed} replaced, ${plan.added} written${existing === void 0 ? " (entrypoint created)" : ""}; ${plan.others.length} other rules kept`);
+  }
+  const target = { zoneId: access.zone.id, hosts: ctx.inputs.domains, tag: ruleTag(primaryHost(config)) };
+  changes.push(...await applyOptimizations(ctx, target, access.optimizations));
+  ctx.io.log.info(changes.length === 0 ? "zone: already configured, no changes" : `zone changes:
+  ${changes.join("\n  ")}`);
 }
 
 // host/src/stages/worker-config.ts
@@ -1586,7 +1952,7 @@ function negotiateEntry(negotiateModule) {
 }
 
 // host/src/stages/worker-config.ts
-async function workerConfig(ctx, stage) {
+async function workerConfig(ctx, stage, o) {
   const built = need(ctx.state, "build", stage);
   const { sitePath, stateDir, projectName, domains } = ctx.inputs;
   if (built.repoWranglerConfig !== void 0) {
@@ -1599,8 +1965,8 @@ async function workerConfig(ctx, stage) {
     main2 = join13(stateDir, "negotiate-worker.mjs");
     await ctx.io.fs.writeText(main2, negotiateEntry(ctx.negotiateModule));
   }
-  const config = generateWranglerConfig({ name: projectName, outputDir: built.outputDir, domains, notFoundHandling: built.notFoundHandling, main: main2 });
-  const file = join13(stateDir, "wrangler.json");
+  const config = generateWranglerConfig({ name: projectName, outputDir: built.outputDir, domains: o.routes ? domains : [], notFoundHandling: built.notFoundHandling, main: main2 });
+  const file = join13(stateDir, o.routes ? "wrangler.json" : "wrangler-upload.json");
   await ctx.io.fs.writeText(file, `${JSON.stringify(config, null, 2)}
 `);
   return { file, workerName: projectName, repoOwned: false };
@@ -1621,11 +1987,19 @@ async function previousSitemap(ctx, host) {
 async function deployWorkers(ctx) {
   const access = need(ctx.state, "access", "deploy");
   const run = { cwd: ctx.inputs.sitePath, env: wranglerEnv(ctx), timeoutMs: DEPLOY_TIMEOUT_MS };
-  const config = await workerConfig(ctx, "deploy");
+  const config = await workerConfig(ctx, "deploy", { routes: true });
   if (config.repoOwned && access.negotiation === "negotiate-worker") {
     ctx.io.log.warn("The repo owns its Worker: import { negotiate } from edge/negotiate.mjs in it so agents get markdown twins.");
   }
   ctx.state.previousDeployment = await recordPrevious(ctx, config.workerName);
+  if (access.takeover.length > 0) {
+    if (config.repoOwned || access.zone === void 0) {
+      throw new Error(`takeover-dns works only with the Worker GeoHarness generates; this repo owns its wrangler config. Move ${access.takeover.join(", ")} by hand as preflight described, then rerun without takeover-dns.`);
+    }
+    const upload = await workerConfig(ctx, "deploy", { routes: false });
+    await runToolOk(ctx, "wrangler", ["deploy", "--config", upload.file], run);
+    ctx.state.dnsTakeover = await takeOverHosts(ctx, access.zone.id, ctx.inputs.projectName, access.takeover);
+  }
   await runToolOk(ctx, "wrangler", ["deploy", "--config", config.file], run);
 }
 async function ensurePagesDomains(ctx) {
@@ -1668,6 +2042,7 @@ async function deployPages(ctx) {
   await ensurePagesDomains(ctx);
 }
 async function deployStage(ctx) {
+  await checkRuleBudget(ctx);
   const host = primaryHost(need(ctx.state, "config", "deploy"));
   const prev = await previousSitemap(ctx, host);
   if (prev !== void 0) ctx.state.previousSitemap = prev;
@@ -1774,7 +2149,7 @@ async function serverArgs(ctx, port, inspectorPort, persistTo) {
     const { outputDir } = need(ctx.state, "build", "lighthouse");
     return ["pages", "dev", outputDir, "--compatibility-date", COMPATIBILITY_DATE, ...common];
   }
-  const { file } = await workerConfig(ctx, "lighthouse");
+  const { file } = await workerConfig(ctx, "lighthouse", { routes: true });
   return ["dev", "--config", file, "--local", "--infer-origin-from-routes=false", ...common];
 }
 function tail(running) {
@@ -1855,26 +2230,44 @@ function readRun(lhr, i) {
     const ids = refs.filter((r) => typeof r.weight === "number" && r.weight > 0 && typeof r.id === "string").map((r) => String(r.id));
     failing.set(c, ids.flatMap((id) => {
       const a = audits[id];
-      return isObject(a) && typeof a.score === "number" && a.score < 1 ? [auditLabel(a, id)] : [];
+      return isObject(a) && typeof a.score === "number" && a.score < 1 ? [{ id, label: auditLabel(a, id) }] : [];
     }));
   }
   return { url, scores, failing };
 }
-function lighthouseFailures(lhrs) {
-  const byUrl = /* @__PURE__ */ new Map();
+function byUrl(lhrs) {
+  const out = /* @__PURE__ */ new Map();
   lhrs.forEach((l, i) => {
     const run = readRun(l, i);
-    byUrl.set(run.url, [...byUrl.get(run.url) ?? [], run]);
+    out.set(run.url, [...out.get(run.url) ?? [], run]);
   });
+  return out;
+}
+function majorityFailing(runs, c) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const r of runs) {
+    for (const a of r.failing.get(c) ?? []) counts.set(a.label, { a, n: (counts.get(a.label)?.n ?? 0) + 1 });
+  }
+  return [...counts.values()].filter(({ n }) => n * 2 > runs.length).map(({ a }) => a);
+}
+function lighthouseMedians(lhrs) {
+  return [...byUrl(lhrs)].map(([url, runs]) => {
+    const scores = {};
+    const ids = /* @__PURE__ */ new Set();
+    for (const c of LIGHTHOUSE_CATEGORIES) {
+      scores[c] = Math.round(median(runs.map((r) => r.scores.get(c) ?? 0)) * 100);
+      for (const a of majorityFailing(runs, c)) ids.add(a.id);
+    }
+    return { url, scores, failingAudits: [...ids] };
+  });
+}
+function lighthouseFailures(lhrs) {
   const out = [];
-  for (const [url, runs] of byUrl) {
+  for (const [url, runs] of byUrl(lhrs)) {
     for (const c of LIGHTHOUSE_CATEGORIES) {
       const score = median(runs.map((r) => r.scores.get(c) ?? 0));
       if (score >= 1) continue;
-      const counts = /* @__PURE__ */ new Map();
-      for (const r of runs) for (const a of r.failing.get(c) ?? []) counts.set(a, (counts.get(a) ?? 0) + 1);
-      const audits = [...counts].filter(([, n]) => n * 2 > runs.length).map(([a]) => a);
-      out.push({ url, category: c, score: Math.round(score * 100), audits });
+      out.push({ url, category: c, score: Math.round(score * 100), audits: majorityFailing(runs, c).map((a) => a.label) });
     }
   }
   return out;
@@ -1905,9 +2298,9 @@ async function runLighthouse(ctx, urls, label) {
   await runToolOk(ctx, "lhci", ["collect", `--config=${rc}`], run);
   await runToolOk(ctx, "lhci", ["upload", `--config=${rc}`], run);
   const links = await readLinks(ctx, dir);
-  const failures = lighthouseFailures(await readLhrs(ctx, dir));
+  const lhrs = await readLhrs(ctx, dir);
   const assert = await runTool(ctx, "lhci", ["assert", `--config=${rc}`], run);
-  return { passed: assert.code === 0, urls, links, failures };
+  return { passed: assert.code === 0, urls, links, failures: lighthouseFailures(lhrs), medians: lighthouseMedians(lhrs) };
 }
 function describeFailures(r) {
   if (r.failures.length === 0) return "see the report links";
@@ -1927,12 +2320,12 @@ async function auditedUrls(ctx, origin) {
 async function lighthouseStage(ctx) {
   if (!ctx.inputs.lighthouse) {
     ctx.io.log.info("lighthouse: false \u2014 Lighthouse gate skipped");
-    ctx.state.lighthouse = { skipped: true, urls: [], links: {}, failures: [] };
+    ctx.state.lighthouse = { skipped: true, urls: [], links: {}, failures: [], medians: [] };
     return;
   }
   const paths = await auditedUrls(ctx, "");
   const result = await withLocalServer(ctx, paths[0] ?? "/", (origin) => runLighthouse(ctx, paths.map((p) => `${origin}${p}`), "local"));
-  ctx.state.lighthouse = { skipped: false, urls: result.urls, links: result.links, failures: result.failures };
+  ctx.state.lighthouse = { skipped: false, urls: result.urls, links: result.links, failures: result.failures, medians: result.medians };
   if (!result.passed) {
     throw new Error(`Lighthouse gate failed: every category must score 100 (median of 3 runs):
   - ${describeFailures(result)}`);
@@ -2107,6 +2500,10 @@ async function preflight(ctx) {
     if (inputs.optimizations.size > 0) io.log.warn(`zone optimizations skipped without zone access: ${[...inputs.optimizations].join(", ")}`);
   } else {
     io.log.info(`zone ${zone.name} (${zone.id}) serves ${host}`);
+    for (const d of inputs.domains.filter((x) => x !== host)) {
+      const z = await findZone(ctx, d);
+      if (z?.id !== zone.id) throw new Error(`${d} is not in zone ${zone.name}, the zone of ${host} (${z === void 0 ? "no zone found" : `it is in ${z.name}`}); every domain must be served by the same zone`);
+    }
     if (inputs.target === "pages") features.push("pages-custom-domain");
     features.push("rewrite-rules", ...inputs.optimizations);
     optimizations = [...inputs.optimizations];
@@ -2124,11 +2521,33 @@ async function preflight(ctx) {
 ${lines.join("\n")}
 Add them to the token, or opt out of the optional feature via extra-optimizations (e.g. "all -zstd").`);
   }
-  ctx.state.access = { zone, negotiation, optimizations };
+  const takeover = inputs.target === "workers" && zone !== void 0 ? await checkHostDns(ctx, zone) : [];
+  if (inputs.target === "workers" && zone === void 0) {
+    io.log.warn("No zone access: the domains' DNS records cannot be checked; a host that still has its own A/AAAA/CNAME records fails the deploy with Cloudflare error 100117.");
+  }
+  ctx.state.access = { zone, negotiation, optimizations, takeover };
 }
 
 // host/src/stages/process.ts
 import { join as join18 } from "node:path";
+
+// host/src/stages/source-dates.ts
+function toUtcSeconds(iso) {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) throw new Error(`git returned an unreadable date "${iso}"`);
+  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+async function sourceDates(io, siteDir, config) {
+  const globs = [...new Set(Object.values(config.content.sources).flat())];
+  const out = {};
+  for (const g of globs) {
+    const date = await io.git.lastCommitDate(siteDir, `:(glob)${g}`);
+    if (date !== void 0) out[g] = toUtcSeconds(date);
+  }
+  return out;
+}
+
+// host/src/stages/process.ts
 var EXISTING = { robots: "robots.txt", headers: "_headers", llms: "llms.txt", sitemap: "sitemap.xml" };
 async function processStage(ctx) {
   const config = need(ctx.state, "config", "process");
@@ -2146,7 +2565,15 @@ async function processStage(ctx) {
     const text = await ctx.io.fs.readTextIfExists(join18(outputDir, file));
     if (text !== void 0) existing[key] = text;
   }
-  const out = unwrap("processSite", ctx.core.processSite({ config, buildId: ctx.inputs.buildId, env, pages, existing }));
+  const out = unwrap("processSite", ctx.core.processSite({
+    config,
+    buildId: ctx.inputs.buildId,
+    hosts: ctx.inputs.domains,
+    env,
+    pages,
+    existing,
+    sourceLastmod: await sourceDates(ctx.io, ctx.inputs.sitePath, config)
+  }));
   for (const f of out.files) await writeOutputFile(ctx.io.fs, outputDir, f.file, f.contents);
   for (const w of out.warnings) ctx.io.log.warn(`core: ${formatCoreError(w).trim()}`);
   ctx.state.processed = { pages: out.pages, rewriteRules: out.rewriteRules, warnings: out.warnings, files: out.files.map((f) => f.file) };
@@ -2179,6 +2606,12 @@ function auditSection(title, r) {
   } else lines.push("", "All checks passed.");
   return [...lines, ""];
 }
+var CATEGORY_TITLES = {
+  performance: "Performance",
+  accessibility: "Accessibility",
+  "best-practices": "Best practices",
+  seo: "SEO"
+};
 function lighthouseSection(title, lh) {
   const out = [`### ${title}`, ""];
   if (lh.skipped) return [...out, "Skipped (`lighthouse: false`).", ""];
@@ -2187,6 +2620,17 @@ function lighthouseSection(title, lh) {
     out.push(`- ${new URL(u).pathname}${link === void 0 ? "" : ` \u2014 [report](${link})`}`);
   }
   out.push("");
+  if (lh.medians.length > 0) {
+    out.push(
+      `| Page | ${LIGHTHOUSE_CATEGORIES.map((c) => CATEGORY_TITLES[c]).join(" | ")} | Failing audits |`,
+      `|---|${LIGHTHOUSE_CATEGORIES.map(() => "---:").join("|")}|---|`
+    );
+    for (const m of lh.medians) {
+      const audits = m.failingAudits.length === 0 ? "\u2014" : m.failingAudits.map((id) => `\`${cell(id)}\``).join(", ");
+      out.push(`| ${cell(new URL(m.url).pathname)} | ${LIGHTHOUSE_CATEGORIES.map((c) => String(m.scores[c] ?? "")).join(" | ")} | ${audits} |`);
+    }
+    out.push("", "Median of the runs per URL; 100 in every category passes.", "");
+  }
   if (lh.failures.length > 0) {
     out.push("| URL | Category | Median | Failing audits |", "|---|---|---:|---|");
     for (const f of lh.failures) out.push(`| ${cell(f.url)} | ${f.category} | ${f.score} | ${cell(f.audits.join("; "))} |`);
@@ -2210,6 +2654,7 @@ function renderSummary(state, failure) {
     for (const p of pages) out.push(`| ${cell(p.route)} | ${cell(p.markdownFile)} | ${p.tokens} |`);
     out.push("");
   }
+  if (state.dnsTakeover !== void 0) out.push("### DNS takeover", "", ...state.dnsTakeover.map((c) => `- ${cell(c)}`), "");
   if (state.zoneChanges !== void 0) {
     out.push("### Zone changes", "");
     out.push(...state.zoneChanges.length === 0 ? ["None \u2014 already configured."] : state.zoneChanges.map((c) => `- ${c}`), "");
@@ -2232,9 +2677,7 @@ function actionOutputs(state) {
 
 // host/src/stages/summary.ts
 async function writeSummary(ctx, failure) {
-  const summaryFile = ctx.io.env.get("GITHUB_STEP_SUMMARY");
-  const outputFile = ctx.io.env.get("GITHUB_OUTPUT");
-  if (summaryFile === void 0 || outputFile === void 0) throw new Error("GITHUB_STEP_SUMMARY and GITHUB_OUTPUT must be set");
+  const { summaryFile, outputFile } = ctx.inputs;
   await ctx.io.fs.appendText(summaryFile, renderSummary(ctx.state, failure));
   const lines = Object.entries(actionOutputs(ctx.state)).map(([k, v]) => `${k}=${v}
 `);
@@ -2259,12 +2702,12 @@ async function liveAudit(ctx) {
 }
 async function liveLighthouse(ctx) {
   if (!ctx.inputs.lighthouse) {
-    ctx.state.liveLighthouse = { skipped: true, urls: [], links: {}, failures: [] };
+    ctx.state.liveLighthouse = { skipped: true, urls: [], links: {}, failures: [], medians: [] };
     return [];
   }
   const config = need(ctx.state, "config", "verify");
   const result = await runLighthouse(ctx, await auditedUrls(ctx, config.site.origin), "live");
-  ctx.state.liveLighthouse = { skipped: false, urls: result.urls, links: result.links, failures: result.failures };
+  ctx.state.liveLighthouse = { skipped: false, urls: result.urls, links: result.links, failures: result.failures, medians: result.medians };
   return result.passed ? [] : [`Lighthouse on the live site is below 100 (median of 3 runs):
     - ${describeFailures(result).replace(/\n {2}- /g, "\n    - ")}`];
 }
@@ -2292,192 +2735,6 @@ ${ctx.state.rollback.detail}`);
   ctx.io.log.warn(rollback.detail);
   throw new Error(`${reason}
 ${rollback.performed ? "Rolled back" : "NOT rolled back"}: ${rollback.detail}`);
-}
-
-// host/src/io/cloudflare/rulesets.ts
-var READ_ONLY_RULE_FIELDS = ["version", "last_updated", "categories"];
-function writableRule(rule) {
-  const out = {};
-  for (const [k, v] of Object.entries(rule)) if (!READ_ONLY_RULE_FIELDS.includes(k)) out[k] = v;
-  return out;
-}
-async function getEntrypointRules(cf, zoneId, phase) {
-  try {
-    const result = asObject(await cf.call("GET", `/zones/${zoneId}/rulesets/phases/${phase}/entrypoint`), "ruleset");
-    const rules = result.rules === void 0 ? [] : asArray(result.rules, "ruleset.rules");
-    return rules.map((r, i) => asObject(r, `ruleset.rules[${i}]`));
-  } catch (e) {
-    if (e instanceof CloudflareApiError && e.status === 404) return void 0;
-    throw e;
-  }
-}
-async function putEntrypointRules(cf, zoneId, phase, rules) {
-  await cf.call("PUT", `/zones/${zoneId}/rulesets/phases/${phase}/entrypoint`, { rules: rules.map(writableRule) });
-}
-
-// host/src/io/cloudflare/workers-domains.ts
-async function listWorkerDomains(cf, accountId, hostname) {
-  const items = await cf.list(`/accounts/${accountId}/workers/domains?hostname=${encodeURIComponent(hostname)}`, 50);
-  return items.map((u, i) => {
-    const d = asObject(u, `workers.domains[${i}]`);
-    return { hostname: asString(d.hostname, "hostname"), service: asString(d.service, "service"), zoneId: asString(d.zone_id, "zone_id") };
-  });
-}
-
-// host/src/lib/tagged-rules.ts
-function ruleTag(host) {
-  return `geoharness:${host}`;
-}
-function isTagged(description, tag) {
-  if (typeof description !== "string" || !description.startsWith(tag)) return false;
-  const next = description.charAt(tag.length);
-  return next === "" || !/[a-z0-9.-]/i.test(next);
-}
-var COMPARED = ["description", "expression", "action", "action_parameters", "enabled"];
-function fingerprint(rule) {
-  const picked = {};
-  for (const k of COMPARED) picked[k] = rule[k];
-  return canonicalJson(picked);
-}
-function planTaggedRules(existing, desired, tag) {
-  for (const d of desired) {
-    if (!isTagged(d.description, tag)) throw new Error(`desired rule "${String(d.description)}" is not tagged ${tag}`);
-  }
-  const current = existing ?? [];
-  const ours = current.filter((r) => isTagged(r.description, tag));
-  const others = current.filter((r) => !isTagged(r.description, tag));
-  const same = ours.length === desired.length && ours.every((r, i) => {
-    const d = desired[i];
-    return d !== void 0 && fingerprint(r) === fingerprint(d);
-  });
-  if (same) return { changed: false, rules: current, added: 0, removed: 0 };
-  return { changed: true, rules: [...others, ...desired], added: desired.length, removed: ours.length };
-}
-
-// host/src/io/cloudflare/bot-management.ts
-async function getBotManagement(cf, zoneId) {
-  return asObject(await cf.call("GET", `/zones/${zoneId}/bot_management`), "bot_management");
-}
-async function putBotManagement(cf, zoneId, patch) {
-  await cf.call("PUT", `/zones/${zoneId}/bot_management`, patch);
-}
-
-// host/src/io/cloudflare/cache.ts
-var SMART_TIERED = "tiered_cache_smart_topology_enable";
-async function getSmartTieredCache(cf, zoneId) {
-  return asObject(await cf.call("GET", `/zones/${zoneId}/cache/${SMART_TIERED}`), SMART_TIERED).value;
-}
-async function setSmartTieredCache(cf, zoneId, value) {
-  await cf.call("PATCH", `/zones/${zoneId}/cache/${SMART_TIERED}`, { value });
-}
-
-// host/src/io/cloudflare/compression.ts
-function zstdCompressionRule(host, tag) {
-  return {
-    description: `${tag} zstd`,
-    expression: `(http.host eq "${host}")`,
-    action: "compress_response",
-    action_parameters: { algorithms: [{ name: "zstd" }, { name: "brotli" }, { name: "gzip" }] },
-    enabled: true
-  };
-}
-
-// host/src/io/cloudflare/settings.ts
-async function getZoneSetting(cf, zoneId, id) {
-  return asObject(await cf.call("GET", `/zones/${zoneId}/settings/${id}`), `setting ${id}`).value;
-}
-async function setZoneSetting(cf, zoneId, id, value) {
-  await cf.call("PATCH", `/zones/${zoneId}/settings/${id}`, { value });
-}
-
-// host/src/stages/zone-settings.ts
-var SETTINGS = {
-  email_obfuscation: { id: "email_obfuscation", value: "off" },
-  rocket_loader: { id: "rocket_loader", value: "off" },
-  early_hints: { id: "early_hints", value: "on" },
-  http3: { id: "http3", value: "on" },
-  brotli: { id: "brotli", value: "on" }
-};
-async function applyOptimizations(ctx, t, enabled) {
-  const changes = [];
-  const on = new Set(enabled);
-  for (const [opt, s] of Object.entries(SETTINGS)) {
-    if (!on.has(opt)) continue;
-    const current = await getZoneSetting(ctx.cf, t.zoneId, s.id);
-    if (current === s.value) continue;
-    await setZoneSetting(ctx.cf, t.zoneId, s.id, s.value);
-    changes.push(`${s.id}: ${String(current)} \u2192 ${s.value}`);
-  }
-  if (on.has("smart_tiered_cache")) {
-    const current = await getSmartTieredCache(ctx.cf, t.zoneId);
-    if (current !== "on") {
-      await setSmartTieredCache(ctx.cf, t.zoneId, "on");
-      changes.push(`smart tiered cache: ${String(current)} \u2192 on`);
-    }
-  }
-  if (on.has("zstd")) {
-    const existing = await getEntrypointRules(ctx.cf, t.zoneId, "http_response_compression");
-    const plan = planTaggedRules(existing, [zstdCompressionRule(t.host, t.tag)], t.tag);
-    if (plan.changed) {
-      await putEntrypointRules(ctx.cf, t.zoneId, "http_response_compression", plan.rules);
-      changes.push(`compression rule (zstd): ${plan.removed} replaced, ${plan.added} written`);
-    }
-  }
-  if (on.has("bot_fight_mode") || on.has("ai_bots_protection")) {
-    const current = await getBotManagement(ctx.cf, t.zoneId);
-    const patch = {};
-    if (on.has("bot_fight_mode") && current.fight_mode !== false) patch.fight_mode = false;
-    if (on.has("ai_bots_protection") && current.ai_bots_protection !== "disabled") patch.ai_bots_protection = "disabled";
-    if (Object.keys(patch).length > 0) {
-      await putBotManagement(ctx.cf, t.zoneId, patch);
-      changes.push(`bot management: ${JSON.stringify(patch)}`);
-    }
-  }
-  return changes;
-}
-
-// host/src/stages/zone.ts
-function rewriteRuleToCf(r) {
-  return {
-    description: r.description,
-    expression: r.expression,
-    action: "rewrite",
-    action_parameters: { uri: { path: { expression: r.pathExpression } } },
-    enabled: true
-  };
-}
-async function checkCustomDomains(ctx) {
-  for (const domain of ctx.inputs.domains) {
-    const attached = await listWorkerDomains(ctx.cf, ctx.inputs.accountId, domain);
-    if (!attached.some((d) => d.hostname === domain && d.service === ctx.inputs.projectName)) {
-      throw new Error(`${domain} is not a Custom Domain of Worker ${ctx.inputs.projectName} after deploy`);
-    }
-  }
-}
-async function zoneStage(ctx) {
-  const config = need(ctx.state, "config", "zone");
-  const access = need(ctx.state, "access", "zone");
-  const processed = need(ctx.state, "processed", "zone");
-  const built = need(ctx.state, "build", "zone");
-  const changes = [];
-  ctx.state.zoneChanges = changes;
-  if (ctx.inputs.target === "workers" && built.repoWranglerConfig === void 0) await checkCustomDomains(ctx);
-  if (access.zone === void 0) {
-    ctx.io.log.warn("zone stage: no zone access; markdown negotiation is served by the negotiate Worker (100k requests/day, then 429)");
-    return;
-  }
-  const host = primaryHost(config);
-  const tag = ruleTag(host);
-  const desired = processed.rewriteRules.map(rewriteRuleToCf);
-  const existing = await getEntrypointRules(ctx.cf, access.zone.id, "http_request_transform");
-  const plan = planTaggedRules(existing, desired, tag);
-  if (plan.changed) {
-    await putEntrypointRules(ctx.cf, access.zone.id, "http_request_transform", plan.rules);
-    changes.push(`URL Rewrite rules (${tag}): ${plan.removed} replaced, ${plan.added} written${existing === void 0 ? " (entrypoint created)" : ""}; ${plan.rules.length - plan.added} other rules kept`);
-  }
-  changes.push(...await applyOptimizations(ctx, { zoneId: access.zone.id, host, tag }, access.optimizations));
-  ctx.io.log.info(changes.length === 0 ? "zone: already configured, no changes" : `zone changes:
-  ${changes.join("\n  ")}`);
 }
 
 // host/src/stages/index.ts

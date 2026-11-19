@@ -1,4 +1,5 @@
 import type { AuditReport } from '../core/types-index.js';
+import { LIGHTHOUSE_CATEGORIES } from './lighthouse-rc.js';
 import type { LighthouseState, RunState } from '../stages/context.js';
 
 const cell = (s: string): string => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
@@ -16,6 +17,10 @@ function auditSection(title: string, r: AuditReport): string[] {
   return [...lines, ''];
 }
 
+const CATEGORY_TITLES: Record<(typeof LIGHTHOUSE_CATEGORIES)[number], string> = {
+  performance: 'Performance', accessibility: 'Accessibility', 'best-practices': 'Best practices', seo: 'SEO',
+};
+
 function lighthouseSection(title: string, lh: LighthouseState): string[] {
   const out = [`### ${title}`, ''];
   if (lh.skipped) return [...out, 'Skipped (`lighthouse: false`).', ''];
@@ -24,6 +29,15 @@ function lighthouseSection(title: string, lh: LighthouseState): string[] {
     out.push(`- ${new URL(u).pathname}${link === undefined ? '' : ` — [report](${link})`}`);
   }
   out.push('');
+  if (lh.medians.length > 0) {
+    out.push(`| Page | ${LIGHTHOUSE_CATEGORIES.map((c) => CATEGORY_TITLES[c]).join(' | ')} | Failing audits |`,
+      `|---|${LIGHTHOUSE_CATEGORIES.map(() => '---:').join('|')}|---|`);
+    for (const m of lh.medians) {
+      const audits = m.failingAudits.length === 0 ? '—' : m.failingAudits.map((id) => `\`${cell(id)}\``).join(', ');
+      out.push(`| ${cell(new URL(m.url).pathname)} | ${LIGHTHOUSE_CATEGORIES.map((c) => String(m.scores[c] ?? '')).join(' | ')} | ${audits} |`);
+    }
+    out.push('', 'Median of the runs per URL; 100 in every category passes.', '');
+  }
   if (lh.failures.length > 0) {
     out.push('| URL | Category | Median | Failing audits |', '|---|---|---:|---|');
     for (const f of lh.failures) out.push(`| ${cell(f.url)} | ${f.category} | ${f.score} | ${cell(f.audits.join('; '))} |`);
@@ -49,6 +63,7 @@ export function renderSummary(state: RunState, failure: string | undefined): str
     for (const p of pages) out.push(`| ${cell(p.route)} | ${cell(p.markdownFile)} | ${p.tokens} |`);
     out.push('');
   }
+  if (state.dnsTakeover !== undefined) out.push('### DNS takeover', '', ...state.dnsTakeover.map((c) => `- ${cell(c)}`), '');
   if (state.zoneChanges !== undefined) {
     out.push('### Zone changes', '');
     out.push(...(state.zoneChanges.length === 0 ? ['None — already configured.'] : state.zoneChanges.map((c) => `- ${c}`)), '');

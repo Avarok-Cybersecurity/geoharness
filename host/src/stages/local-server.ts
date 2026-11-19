@@ -21,7 +21,7 @@ async function serverArgs(ctx: StageContext, port: number, inspectorPort: number
     const { outputDir } = need(ctx.state, 'build', 'lighthouse');
     return ['pages', 'dev', outputDir, '--compatibility-date', COMPATIBILITY_DATE, ...common];
   }
-  const { file } = await workerConfig(ctx, 'lighthouse');
+  const { file } = await workerConfig(ctx, 'lighthouse', { routes: true });
   // The real local origin, not the custom domain, so redirects and robots.txt stay on the audited server.
   return ['dev', '--config', file, '--local', '--infer-origin-from-routes=false', ...common];
 }

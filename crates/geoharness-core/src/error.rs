@@ -91,6 +91,7 @@ pub mod warning {
     pub const JSONLD_INVALID: &str = "page.jsonld_invalid";
     pub const MIXED_LAYOUT: &str = "rewrite.mixed_layout";
     pub const CSP_EXTENDED: &str = "headers.csp_extended";
+    pub const NO_LASTMOD: &str = "page.no_lastmod";
 }
 
 /// Builds a warning `CoreError`.

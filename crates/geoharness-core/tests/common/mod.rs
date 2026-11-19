@@ -45,6 +45,11 @@ pub fn input() -> SiteInput {
     SiteInput {
         config: config(),
         build_id: BUILD_ID.into(),
+        hosts: vec!["example.com".into(), "www.example.com".into()],
+        source_lastmod: BTreeMap::from([(
+            "pages/guide/advanced/**".to_owned(),
+            "2026-11-12T10:00:00Z".to_owned(),
+        )]),
         env: BTreeMap::from([("PUBLIC_NAME".to_owned(), "the docs team".to_owned())]),
         pages: vec![
             page(

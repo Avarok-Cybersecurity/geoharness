@@ -51,6 +51,8 @@ pub fn pass_fail(
 /// One audited page, parsed once.
 pub struct PageCtx<'a> {
     pub route: &'a str,
+    /// The page as served, for checks that depend on byte positions.
+    pub html: &'a str,
     pub page: Page,
     pub markdown: &'a str,
 }
@@ -61,6 +63,7 @@ pub fn pages(input: &AuditInput) -> Vec<PageCtx<'_>> {
         .iter()
         .map(|p| PageCtx {
             route: &p.route,
+            html: &p.html,
             page: Page::parse(&p.html),
             markdown: &p.markdown,
         })

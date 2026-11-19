@@ -26,8 +26,16 @@ export interface Inputs {
   deploy: boolean;
   /** After a failed post-deploy verification, roll production back to the version it served before. Meaningful only when deploy is true. */
   rollbackOnFailure: boolean;
+  /**
+   * workers target only: whether GeoHarness may replace a domain's own A/AAAA/CNAME records with the Worker Custom
+   * Domain. undefined (not stated) is fine until preflight finds such records; then the run fails asking for it.
+   */
+  takeoverDns: boolean | undefined;
   buildId: string;
   stateDir: string;
+  /** GITHUB_STEP_SUMMARY and GITHUB_OUTPUT: where the summary and the action outputs are appended. */
+  summaryFile: string;
+  outputFile: string;
 }
 
 export class InputError extends Error {
@@ -77,6 +85,9 @@ export function readInputs(env: Env): Inputs {
   // No default: whether a failing build stays live is a policy the workflow states.
   const rollbackOnFailure = deploy ? bool('rollback-on-failure') : false;
   if (accountId !== '' && !ACCOUNT.test(accountId)) problems.push('cloudflare-account-id must be 32 hex characters');
+  const takeoverRaw = raw('takeover-dns');
+  if (takeoverRaw !== undefined && takeoverRaw !== 'true' && takeoverRaw !== 'false') problems.push(`takeover-dns must be "true" or "false", got "${takeoverRaw}"`);
+  const takeoverDns = takeoverRaw === undefined ? undefined : takeoverRaw === 'true';
 
   const workspace = env.get('GITHUB_WORKSPACE') ?? '';
   if (workspace === '') problems.push('GITHUB_WORKSPACE is not set');
@@ -92,6 +103,7 @@ export function readInputs(env: Env): Inputs {
   const targetRaw = required('target');
   if (targetRaw !== '' && targetRaw !== 'workers' && targetRaw !== 'pages') problems.push('target must be "workers" or "pages"');
   const target = targetRaw === 'pages' ? 'pages' : 'workers';
+  if (target === 'pages' && takeoverRaw !== undefined) problems.push('takeover-dns applies only to target workers (the pages target never replaces DNS records)');
 
   const projectName = required('project-name');
   if (projectName !== '' && !PROJECT.test(projectName)) problems.push('project-name must be lower-case letters, digits and hyphens (≤63)');
@@ -116,6 +128,15 @@ export function readInputs(env: Env): Inputs {
   const stateDir = env.get('GEOHARNESS_STATE_DIR') ?? '';
   if (stateDir === '') problems.push('GEOHARNESS_STATE_DIR is not set (action.yml sets it to $RUNNER_TEMP/geoharness)');
 
+  // Read up front: a run without them used to build, deploy and verify, then die writing the summary.
+  const runnerFile = (name: string): string => {
+    const v = env.get(name) ?? '';
+    if (v === '') problems.push(`${name} is not set (GitHub Actions sets it; a local run must point it at a writable file)`);
+    return v;
+  };
+  const summaryFile = runnerFile('GITHUB_STEP_SUMMARY');
+  const outputFile = runnerFile('GITHUB_OUTPUT');
+
   if (problems.length > 0) throw new InputError(problems);
   return {
     apiToken, accountId, workspace, sitePath, adapter,
@@ -123,6 +144,6 @@ export function readInputs(env: Env): Inputs {
     target, projectName, domains, lighthouse, lighthouseMaxUrls,
     geoMinScore: geoMinScore ?? 0,
     optimizations: opt.ok ? opt.value : new Set(),
-    deploy, rollbackOnFailure, buildId, stateDir,
+    deploy, rollbackOnFailure, takeoverDns, buildId, stateDir, summaryFile, outputFile,
   };
 }

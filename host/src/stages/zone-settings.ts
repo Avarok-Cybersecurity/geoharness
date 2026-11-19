@@ -16,7 +16,7 @@ const SETTINGS: Partial<Record<OptimizationId, { id: ZoneSettingId; value: OnOff
   brotli: { id: 'brotli', value: 'on' },
 };
 
-export interface ZoneTarget { zoneId: string; host: string; tag: string }
+export interface ZoneTarget { zoneId: string; hosts: string[]; tag: string }
 
 /** Applies each enabled optimization only when it differs; returns human-readable changes. */
 export async function applyOptimizations(ctx: StageContext, t: ZoneTarget, enabled: OptimizationId[]): Promise<string[]> {
@@ -38,7 +38,7 @@ export async function applyOptimizations(ctx: StageContext, t: ZoneTarget, enabl
   }
   if (on.has('zstd')) {
     const existing = await getEntrypointRules(ctx.cf, t.zoneId, 'http_response_compression');
-    const plan = planTaggedRules(existing, [zstdCompressionRule(t.host, t.tag)], t.tag);
+    const plan = planTaggedRules(existing, [zstdCompressionRule(t.hosts, t.tag)], [t.tag]);
     if (plan.changed) {
       await putEntrypointRules(ctx.cf, t.zoneId, 'http_response_compression', plan.rules);
       changes.push(`compression rule (zstd): ${plan.removed} replaced, ${plan.added} written`);

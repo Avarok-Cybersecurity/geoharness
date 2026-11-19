@@ -2,7 +2,8 @@
   "sidecar": {
     "guide/advanced/index.md": {
       "url": "https://example.com/guide/advanced/",
-      "title": "Advanced | Example Docs"
+      "title": "Advanced | Example Docs",
+      "lastmod": "2026-11-12T10:00:00Z"
     },
     "guide/index.md": {
       "url": "https://example.com/guide/",

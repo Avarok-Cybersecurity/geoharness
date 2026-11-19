@@ -109,6 +109,15 @@
     {
       "category": "indexability",
       "citations": [
+        "cf-workers-static-assets"
+      ],
+      "id": "index.build_meta_early",
+      "severity": "blocking",
+      "title": "Build meta sits where the live check reads"
+    },
+    {
+      "category": "indexability",
+      "citations": [
         "lighthouse-robots-txt",
         "w3c-csp3"
       ],

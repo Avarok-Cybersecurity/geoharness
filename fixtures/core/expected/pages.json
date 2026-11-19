@@ -4,7 +4,7 @@
     "markdownFile": "index.md",
     "title": "Example Docs",
     "description": "Docs for Example, the widget toolkit.",
-    "tokens": 129,
+    "tokens": 182,
     "lastmod": "2026-11-10T09:00:00Z"
   },
   {
@@ -20,7 +20,8 @@
     "markdownFile": "guide/advanced/index.md",
     "title": "Advanced | Example Docs",
     "description": "Advanced use of Example.",
-    "tokens": 200
+    "tokens": 210,
+    "lastmod": "2026-11-12T10:00:00Z"
   },
   {
     "route": "/private/",
