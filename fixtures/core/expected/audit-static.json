@@ -75,7 +75,7 @@
       "severity": "blocking",
       "passed": true,
       "route": "/",
-      "evidence": "287 characters of visible text in the HTML (threshold 100)",
+      "evidence": "329 characters of visible text in the HTML (threshold 100)",
       "citations": [
         "peec-how-deep-research-reads-2026",
         "google-ai-guide-2026"
@@ -144,7 +144,7 @@
       "severity": "advisory",
       "passed": true,
       "route": "/",
-      "evidence": "5 links on the page",
+      "evidence": "9 links on the page",
       "citations": [
         "peec-reading-budget-2026"
       ]
@@ -166,7 +166,7 @@
       "severity": "advisory",
       "passed": true,
       "route": "/",
-      "evidence": "\"Example Inc\" within the first 83 characters",
+      "evidence": "\"Example Inc\" within the first 96 characters",
       "citations": [
         "indig-2026"
       ]
