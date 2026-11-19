@@ -13,6 +13,11 @@ import { gitCommitAll, recordingProc, tempDir, world, type ProcCall, type Record
 
 export const HOST = 'geo.example.com';
 export const ZONE = { id: 'zone1', name: 'example.com' };
+/** A Worker that already serves version v-prev, so a rollback has somewhere to go. */
+export const CF_WITH_VERSION = {
+  zones: [ZONE], workerDomains: [{ hostname: HOST, service: 'geo-site', zone_id: 'zone1' }],
+  workerDeployments: { 'geo-site': [{ id: 'd2', created_on: '2026-11-18T00:00:00Z', versions: [{ version_id: 'v-prev', percentage: 100 }] }] },
+};
 let cf: FakeCf | undefined;
 /** The fake Cloudflare API of the current test. */
 export function currentCf(): FakeCf {

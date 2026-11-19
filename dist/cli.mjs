@@ -25,6 +25,25 @@ function unwrap(operation, result) {
   throw new CoreFailure(operation, result.errors);
 }
 
+// host/src/lib/errors.ts
+function describeError(e) {
+  let out = "";
+  let cur = e;
+  for (let depth = 0; cur !== void 0 && cur !== null && depth < MAX_CAUSE_DEPTH; depth += 1) {
+    const part = oneError(cur);
+    if (part !== "" && !out.includes(part)) out = out === "" ? part : `${out}: ${part}`;
+    cur = cur instanceof Error ? cur.cause : void 0;
+  }
+  return out;
+}
+var MAX_CAUSE_DEPTH = 4;
+function oneError(e) {
+  if (!(e instanceof Error)) return String(e);
+  const code = e.code;
+  if (typeof code !== "string" || code === "" || e.message.includes(code)) return e.message;
+  return e.message === "" ? code : `${e.message} (${code})`;
+}
+
 // host/src/lib/gate.ts
 function gateFailures(report, minScore) {
   const failures = report.findings.filter((f) => f.severity === "blocking" && !f.passed).map((f) => `blocking ${f.checkId}${f.route === void 0 ? "" : ` (${f.route})`}: ${f.title} \u2014 ${f.evidence}`);
@@ -43,14 +62,10 @@ function buildMetaContent(html) {
 // host/src/stages/live.ts
 var LIVE_TIMEOUT_MS = 2e4;
 var BODY_PREFIX_CHARS = 8192;
+var LIVE_ATTEMPTS = 3;
+var LIVE_RETRY_DELAY_MS = 2e3;
 async function observe(io, req) {
-  const res = await io.http.request({
-    method: "GET",
-    url: req.url,
-    headers: { "user-agent": req.userAgent, accept: req.accept },
-    timeoutMs: LIVE_TIMEOUT_MS,
-    redirect: "manual"
-  });
+  const res = await requestWithRetry(io, req);
   const headers = {};
   for (const [k, v] of Object.entries(res.headers)) headers[k.toLowerCase()] = v;
   return {
@@ -62,6 +77,24 @@ async function observe(io, req) {
     bodyPrefix: res.body.slice(0, BODY_PREFIX_CHARS),
     bodySuffix: res.body.slice(-BODY_PREFIX_CHARS)
   };
+}
+async function requestWithRetry(io, req) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await io.http.request({
+        method: "GET",
+        url: req.url,
+        headers: { "user-agent": req.userAgent, accept: req.accept },
+        timeoutMs: LIVE_TIMEOUT_MS,
+        redirect: "manual"
+      });
+    } catch (e) {
+      const what = `GET ${req.url} (${req.userAgent}, Accept: ${req.accept}): ${describeError(e)}`;
+      if (attempt >= LIVE_ATTEMPTS) throw new Error(`${what} (${attempt} attempts)`, { cause: e });
+      io.log.warn(`attempt ${attempt} of ${LIVE_ATTEMPTS} failed, retrying in ${LIVE_RETRY_DELAY_MS / 1e3}s: ${what}`);
+      await io.clock.sleep(LIVE_RETRY_DELAY_MS);
+    }
+  }
 }
 async function waitForBuild(io, o) {
   const deadline = io.clock.nowMs() + o.timeoutMs;
@@ -2230,10 +2263,17 @@ async function liveLighthouse(ctx) {
   return result.passed ? [] : [`Lighthouse on the live site is below 100 (median of 3 runs):
     - ${describeFailures(result).replace(/\n {2}- /g, "\n    - ")}`];
 }
+async function liveFailures(ctx, url) {
+  try {
+    await waitForBuild(ctx.io, { url, buildId: ctx.inputs.buildId, ...VERIFY_POLL });
+    return [...await liveAudit(ctx), ...await liveLighthouse(ctx)];
+  } catch (e) {
+    return [`verification could not complete: ${describeError(e)}`];
+  }
+}
 async function verifyStage(ctx) {
   const { url } = need(ctx.state, "deploy", "verify");
-  await waitForBuild(ctx.io, { url, buildId: ctx.inputs.buildId, ...VERIFY_POLL });
-  const failures = [...await liveAudit(ctx), ...await liveLighthouse(ctx)];
+  const failures = await liveFailures(ctx, url);
   if (failures.length === 0) return;
   const reason = `live verification failed:
 ${failures.map((f) => `  - ${f}`).join("\n")}`;

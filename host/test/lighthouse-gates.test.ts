@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProcResult } from '../src/io/types.js';
 import { runAll } from '../src/stages/index.js';
 import { SHA } from './helpers/context.js';
-import { currentCf, harness, HOST, ZONE, wranglerCalls, type Harness } from './helpers/harness.js';
+import { CF_WITH_VERSION, currentCf, harness, HOST, wranglerCalls, type Harness } from './helpers/harness.js';
 import type { ProcCall } from './helpers/world.js';
 
 const LHCI = '--package=@lhci/cli@0.16.1';
@@ -38,11 +38,6 @@ function lhci(seoFor: (url: string) => number): (c: ProcCall) => Promise<ProcRes
     return undefined;
   };
 }
-
-const CF_WITH_VERSION = {
-  zones: [ZONE], workerDomains: [{ hostname: HOST, service: 'geo-site', zone_id: 'zone1' }],
-  workerDeployments: { 'geo-site': [{ id: 'd2', created_on: '2026-11-18T00:00:00Z', versions: [{ version_id: 'v-prev', percentage: 100 }] }] },
-};
 
 describe('pre-deploy Lighthouse gate (local wrangler server)', () => {
   it('serves the deploy config with wrangler dev --local, audits 127.0.0.1 URLs, then stops the server', async () => {

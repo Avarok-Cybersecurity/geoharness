@@ -14,6 +14,13 @@ All notable changes to GeoHarness are documented here. The format follows
   `wrangler dev` (last rule per pattern wins) serves the same headers as production.
 - Generated Worker `compatibility_date` is 2026-10-30, the newest the pinned wrangler's runtime supports.
 
+### Fixed
+
+- Verify: a network error on a live request (a reset, refused connection or timeout) is retried 3 times, 2 s
+  apart; one that persists names the request and its cause (`GET <url> (<user-agent>, Accept: …): fetch failed:
+  read ECONNRESET`) instead of a bare `fetch failed`. A verification that cannot complete, including a build that
+  never goes live, now goes through the rollback like a failed one; before, a thrown error skipped the rollback.
+
 ### Added
 
 - Post-deploy Lighthouse gate on the live URLs; on a failed live audit or gate, `rollback-on-failure: true`
