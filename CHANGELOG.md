@@ -16,6 +16,10 @@ All notable changes to GeoHarness are documented here. The format follows
 
 ### Fixed
 
+- `<meta name="build">` is injected at the top of `<head>` (after a charset declaration) instead of its end. The
+  live build check reads the first 8,192 characters, so a page with a large inline `<style>` or JSON-LD failed
+  verification after deploying and was rolled back, though it served the right build. Found migrating
+  thomaspbraun.com (build meta at offset 15,466).
 - Verify: a network error on a live request (a reset, refused connection or timeout) is retried 3 times, 2 s
   apart; one that persists names the request and its cause (`GET <url> (<user-agent>, Accept: …): fetch failed:
   read ECONNRESET`) instead of a bare `fetch failed`. A verification that cannot complete, including a build that
