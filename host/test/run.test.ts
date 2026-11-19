@@ -151,8 +151,9 @@ describe('geoharness run', () => {
       },
     });
     await runAll(h.ctx);
-    const lhci = h.proc.calls.filter((c) => c.args.includes('--package=@lhci/cli@0.15.1'));
+    const lhci = h.proc.calls.filter((c) => c.args.includes('--package=@lhci/cli@0.16.1'));
     expect(lhci.map((c) => c.args[4])).toEqual(['collect', 'upload', 'assert']);
+    expect(lhci[1]?.options.env).toEqual({ LHCI_BUILD_CONTEXT__CURRENT_HASH: SHA });
     const rcPath = String(lhci[0]?.args[5]).replace('--config=', '');
     const rc = JSON.parse(await readFile(rcPath, 'utf8')) as { ci: { collect: { url: string[]; numberOfRuns: number }; assert: { assertions: Record<string, unknown> } } };
     expect(rc.ci.collect.numberOfRuns).toBe(3);

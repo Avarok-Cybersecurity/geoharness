@@ -1359,7 +1359,7 @@ function negotiateEntry(negotiateModule) {
 // host/src/stages/tools.ts
 var TOOLS = {
   wrangler: { pkg: "wrangler@4.156.0", bin: "wrangler" },
-  lhci: { pkg: "@lhci/cli@0.15.1", bin: "lhci" }
+  lhci: { pkg: "@lhci/cli@0.16.1", bin: "lhci" }
 };
 async function runTool(ctx, tool, args, run) {
   const { pkg, bin } = TOOLS[tool];
@@ -1562,7 +1562,7 @@ async function lighthouseStage(ctx) {
   const dir = await ctx.io.fs.makeTempDir(ctx.inputs.stateDir, "lhci-");
   const rc = join15(dir, "lighthouserc.json");
   await ctx.io.fs.writeText(rc, JSON.stringify(lighthouseRc(outputDir, urls), null, 2));
-  const run = { cwd: dir, env: {}, timeoutMs: LHCI_TIMEOUT_MS };
+  const run = { cwd: dir, env: { LHCI_BUILD_CONTEXT__CURRENT_HASH: ctx.inputs.buildId }, timeoutMs: LHCI_TIMEOUT_MS };
   await runToolOk(ctx, "lhci", ["collect", `--config=${rc}`], run);
   await runToolOk(ctx, "lhci", ["upload", `--config=${rc}`], run);
   const linksText = await ctx.io.fs.readTextIfExists(join15(dir, ".lighthouseci", "links.json"));

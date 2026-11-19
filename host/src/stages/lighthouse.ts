@@ -43,7 +43,8 @@ export async function lighthouseStage(ctx: StageContext): Promise<void> {
   const dir = await ctx.io.fs.makeTempDir(ctx.inputs.stateDir, 'lhci-');
   const rc = join(dir, 'lighthouserc.json');
   await ctx.io.fs.writeText(rc, JSON.stringify(lighthouseRc(outputDir, urls), null, 2));
-  const run = { cwd: dir, env: {}, timeoutMs: LHCI_TIMEOUT_MS };
+  // lhci runs in a temp dir that is not a git checkout; upload needs the commit, so it is given explicitly.
+  const run = { cwd: dir, env: { LHCI_BUILD_CONTEXT__CURRENT_HASH: ctx.inputs.buildId }, timeoutMs: LHCI_TIMEOUT_MS };
   await runToolOk(ctx, 'lhci', ['collect', `--config=${rc}`], run);
   await runToolOk(ctx, 'lhci', ['upload', `--config=${rc}`], run);
   const linksText = await ctx.io.fs.readTextIfExists(join(dir, '.lighthouseci', 'links.json'));

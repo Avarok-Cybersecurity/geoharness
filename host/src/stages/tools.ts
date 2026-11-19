@@ -1,10 +1,13 @@
 import type { ProcResult } from '../io/types.js';
 import type { StageContext } from './context.js';
 
-/** Exact pins; tools run through npx so they never enter the action bundle. */
+/**
+ * Exact pins; tools run through npx so they never enter the action bundle. lhci 0.16 bundles Lighthouse 13,
+ * the first whose robots-txt audit accepts the Content-Signal directive GeoHarness writes (12.x scored SEO 92).
+ */
 export const TOOLS = {
   wrangler: { pkg: 'wrangler@4.156.0', bin: 'wrangler' },
-  lhci: { pkg: '@lhci/cli@0.15.1', bin: 'lhci' },
+  lhci: { pkg: '@lhci/cli@0.16.1', bin: 'lhci' },
 } as const;
 
 export interface ToolRun { cwd: string; env: Record<string, string>; timeoutMs: number }
