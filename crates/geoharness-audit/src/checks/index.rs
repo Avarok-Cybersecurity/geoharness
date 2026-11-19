@@ -81,13 +81,17 @@ pub fn build_meta_early(p: &PageCtx<'_>, build_id: &str) -> Scored {
     let (ok, evidence) = match p.html.find(&meta) {
         None => (
             false,
-            format!("no {meta} in the page; the live check matches exactly this tag (a site's own build meta must use this form)"),
+            format!(
+                "no {meta} in the page; the live check matches exactly this tag (a site's own build meta must use this form)"
+            ),
         ),
         Some(at) => {
             let end = p.html[..at + meta.len()].encode_utf16().count();
             (
                 end <= BODY_PREFIX_CHARS,
-                format!("build meta ends at character {end}; the live check reads the first {BODY_PREFIX_CHARS}"),
+                format!(
+                    "build meta ends at character {end}; the live check reads the first {BODY_PREFIX_CHARS}"
+                ),
             )
         }
     };

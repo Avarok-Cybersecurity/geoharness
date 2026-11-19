@@ -20,7 +20,7 @@ fn bad_input_uses_the_error_envelope_with_a_path() {
 #[test]
 fn parsed_config_feeds_process_site() {
     let out = calls::process_site(
-        json!({ "config": config(), "buildId": "abc", "hosts": ["example.com"], "env": {}, "pages": [], "existing": {} }),
+        json!({ "config": config(), "buildId": "abc", "hosts": ["example.com"], "env": {}, "pages": [], "existing": {}, "sourceLastmod": {} }),
     );
     assert_eq!(out["ok"], true, "{out}");
     assert!(

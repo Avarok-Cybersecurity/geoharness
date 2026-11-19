@@ -2,7 +2,8 @@
 title: "Advanced | Example Docs"
 description: "Advanced use of Example."
 canonical: "https://example.com/guide/advanced/"
-tokens: 200
+lastmod: "2026-11-12T10:00:00Z"
+tokens: 210
 ---
 
 # Advanced
@@ -25,6 +26,7 @@ Back to the [guide](https://example.com/guide/).
     ],
     "url": "https://example.com/"
   },
+  "dateModified": "2026-11-12T10:00:00Z",
   "description": "Advanced use of Example.",
   "inLanguage": "en-US",
   "isPartOf": {

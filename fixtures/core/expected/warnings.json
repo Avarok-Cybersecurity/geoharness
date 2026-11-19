@@ -1,1 +1,7 @@
-[]
+[
+  {
+    "code": "page.no_lastmod",
+    "message": "1 page(s) have no lastmod (sitemap.xml and {{geo.lastmod}} go without): /private/. Their HTML is not tracked by git (built output) and no content.sources entry maps them to source files",
+    "path": "content.sources"
+  }
+]

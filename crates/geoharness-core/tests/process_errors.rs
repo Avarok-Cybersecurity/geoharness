@@ -109,7 +109,10 @@ fn every_served_host_gets_its_own_tagged_rewrite_rules() {
             .collect();
         assert_eq!(tagged.len(), 3, "{host}: {tagged:#?}");
         let guard = format!("http.host eq \"{host}\"");
-        assert!(tagged.iter().all(|r| r.expression.contains(&guard)), "{tagged:#?}");
+        assert!(
+            tagged.iter().all(|r| r.expression.contains(&guard)),
+            "{tagged:#?}"
+        );
     }
     assert_eq!(out.rewrite_rules.len(), 3 * input.hosts.len());
 }

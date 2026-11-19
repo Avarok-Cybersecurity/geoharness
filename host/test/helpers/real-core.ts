@@ -28,6 +28,7 @@ export function fixtureSiteInput(core: Core): SiteInput {
     config,
     buildId: FIXTURE_BUILD_ID,
     hosts: ['example.com', 'www.example.com'],
+    sourceLastmod: { 'pages/guide/advanced/**': '2026-11-12T10:00:00Z' },
     env: { PUBLIC_NAME: 'the docs team' },
     pages: [
       page('/', 'index.html', { lastmod: '2026-11-10T09:00:00Z' }),

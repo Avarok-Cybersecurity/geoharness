@@ -43,7 +43,13 @@ mainSelector: string,
 /**
  * Route globs that get no twin and are left out of llms/sitemap.
  */
-exclude: Array<string>, };
+exclude: Array<string>, 
+/**
+ * Route glob → source path globs (relative to the site directory). A
+ * page matching a route glob takes the newest commit date of those
+ * sources as its lastmod: built output is usually not tracked by git.
+ */
+sources: { [key in string]: Array<string> }, };
 
 export type Llms = { summary: string, sections: Array<LlmsSection>, };
 
@@ -82,7 +88,13 @@ hosts: Array<string>,
 /**
  * Only the names in `config.env`; the core re-checks.
  */
-env: { [key in string]: string }, pages: Array<PageInput>, existing: Existing, };
+env: { [key in string]: string }, pages: Array<PageInput>, existing: Existing, 
+/**
+ * Newest commit date (`YYYY-MM-DDTHH:MM:SSZ`, UTC) of each source glob
+ * of `config.content.sources` that matched a committed file; a glob
+ * matching none is left out.
+ */
+sourceLastmod: { [key in string]: string }, };
 
 export type Existing = { robots?: string, headers?: string, llms?: string, sitemap?: string, };
 

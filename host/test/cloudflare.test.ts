@@ -25,7 +25,7 @@ async function zoneRun(fake: FakeCf, domains: string[] = ['geo.example.com']): P
   const io = testIO({ http: nodeHttp, env: {} });
   const core = fakeCore({ score: 90, blockingFails: false });
   const config = sampleConfig('https://geo.example.com');
-  const processed = core.processSite({ config, buildId: 'x', hosts: domains, env: {}, pages: [{ route: '/', file: 'index.html', html: '<head></head>' }], existing: {} });
+  const processed = core.processSite({ config, buildId: 'x', hosts: domains, sourceLastmod: {}, env: {}, pages: [{ route: '/', file: 'index.html', html: '<head></head>' }], existing: {} });
   if (!processed.ok) throw new Error('fake core failed');
   const ctx = makeContext({
     io, core, inputs: makeInputs({ domains }), cfBaseUrl: fake.baseUrl,

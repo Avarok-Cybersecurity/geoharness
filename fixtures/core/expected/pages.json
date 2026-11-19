@@ -20,7 +20,8 @@
     "markdownFile": "guide/advanced/index.md",
     "title": "Advanced | Example Docs",
     "description": "Advanced use of Example.",
-    "tokens": 200
+    "tokens": 210,
+    "lastmod": "2026-11-12T10:00:00Z"
   },
   {
     "route": "/private/",

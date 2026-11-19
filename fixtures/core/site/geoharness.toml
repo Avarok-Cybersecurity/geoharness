@@ -40,6 +40,8 @@ disallow = ["/private/"]
 [content]
 mainSelector = "main"
 exclude = ["/drafts/**"]
+# Built pages whose output git does not track take their sources' newest commit as lastmod.
+sources = { "/guide/advanced/" = ["pages/guide/advanced/**"] }
 
 [llms]
 summary = "Example Docs explains how to install and use Example."

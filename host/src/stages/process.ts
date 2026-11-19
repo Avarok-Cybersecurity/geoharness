@@ -4,6 +4,7 @@ import type { SiteInput } from '../core/types-index.js';
 import { adapterById } from './build.js';
 import { need, type StageContext } from './context.js';
 import { writeOutputFile } from './site-files.js';
+import { sourceDates } from './source-dates.js';
 
 const EXISTING = { robots: 'robots.txt', headers: '_headers', llms: 'llms.txt', sitemap: 'sitemap.xml' } as const;
 
@@ -25,7 +26,10 @@ export async function processStage(ctx: StageContext): Promise<void> {
     if (text !== undefined) existing[key] = text;
   }
 
-  const out = unwrap('processSite', ctx.core.processSite({ config, buildId: ctx.inputs.buildId, hosts: ctx.inputs.domains, env, pages, existing }));
+  const out = unwrap('processSite', ctx.core.processSite({
+    config, buildId: ctx.inputs.buildId, hosts: ctx.inputs.domains, env, pages, existing,
+    sourceLastmod: await sourceDates(ctx.io, ctx.inputs.sitePath, config),
+  }));
   for (const f of out.files) await writeOutputFile(ctx.io.fs, outputDir, f.file, f.contents);
   for (const w of out.warnings) ctx.io.log.warn(`core: ${formatCoreError(w).trim()}`);
   ctx.state.processed = { pages: out.pages, rewriteRules: out.rewriteRules, warnings: out.warnings, files: out.files.map((f) => f.file) };

@@ -11,7 +11,7 @@ export function sampleConfig(origin: string): SiteConfig {
     identity: { kind: 'organization', name: 'Fixture', url: origin, sameAs: [] },
     contentSignal: { search: true, aiInput: true, aiTrain: false },
     bots: [{ tokens: ['GPTBot'], allow: ['/'], disallow: [], group: 'training' }],
-    content: { mainSelector: 'main', exclude: [] },
+    content: { mainSelector: 'main', exclude: [], sources: {} },
     llms: { summary: 'Fixture site', sections: [{ title: 'Docs', routes: ['/about/'] }] },
     env: [],
     headers: { immutable: [] },

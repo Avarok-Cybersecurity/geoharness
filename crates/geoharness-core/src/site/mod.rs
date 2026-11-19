@@ -2,6 +2,7 @@
 
 mod check;
 pub mod jsonld;
+mod lastmod;
 mod page;
 
 use crate::error::{CoreError, Error, warn, warning};
@@ -20,24 +21,7 @@ pub fn process_site(input: &SiteInput) -> Result<SiteOutput, Vec<CoreError>> {
     let mut page_files = Vec::new();
     let mut processed = Vec::new();
     for page in &input.pages {
-        let ctx = TemplateContext {
-            build_id: &input.build_id,
-            lastmod: page.lastmod.as_deref(),
-            declared_env: &config.env,
-            env: &input.env,
-        };
-        let templated = render(&page.html, &ctx).and_then(|html| {
-            let markdown = page
-                .markdown
-                .as_deref()
-                .map(|m| render(m, &ctx))
-                .transpose()?;
-            Ok(crate::types::PageInput {
-                html,
-                markdown,
-                ..page.clone()
-            })
-        });
+        let templated = templated(input, page);
         let templated = match templated {
             Ok(p) => p,
             Err(e) => {
@@ -63,6 +47,12 @@ pub fn process_site(input: &SiteInput) -> Result<SiteOutput, Vec<CoreError>> {
             Err(e) => errors.push(e.at(page.file.clone())),
         }
     }
+    let undated: Vec<String> = processed
+        .iter()
+        .filter(|p| p.summary.lastmod.is_none())
+        .map(|p| p.summary.route.clone())
+        .collect();
+    warnings.extend(lastmod::missing_warning(&undated));
     let robots_txt =
         robots::merge(input.existing.robots.as_deref(), config).map_err(|e| e.at("robots.txt"));
     let headers_txt = merged_headers(input, &mut warnings);
@@ -114,6 +104,37 @@ pub fn process_site(input: &SiteInput) -> Result<SiteOutput, Vec<CoreError>> {
             .collect(),
         pages: processed.into_iter().map(|p| p.summary).collect(),
         warnings,
+    })
+}
+
+/// The page with its templates rendered and its effective lastmod set.
+fn templated(
+    input: &SiteInput,
+    page: &crate::types::PageInput,
+) -> Result<crate::types::PageInput, Error> {
+    let lastmod = lastmod::effective(
+        &input.config,
+        &input.source_lastmod,
+        &page.route,
+        page.lastmod.as_deref(),
+    );
+    let ctx = TemplateContext {
+        build_id: &input.build_id,
+        lastmod: lastmod.as_deref(),
+        declared_env: &input.config.env,
+        env: &input.env,
+    };
+    let html = render(&page.html, &ctx)?;
+    let markdown = page
+        .markdown
+        .as_deref()
+        .map(|m| render(m, &ctx))
+        .transpose()?;
+    Ok(crate::types::PageInput {
+        html,
+        markdown,
+        lastmod,
+        ..page.clone()
     })
 }
 

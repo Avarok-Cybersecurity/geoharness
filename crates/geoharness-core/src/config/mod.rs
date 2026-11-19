@@ -6,6 +6,8 @@ mod validate;
 
 pub use parse::parse_config;
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,6 +135,11 @@ pub struct Content {
     /// Route globs that get no twin and are left out of llms/sitemap.
     #[serde(default)]
     pub exclude: Vec<String>,
+    /// Route glob → source path globs (relative to the site directory). A
+    /// page matching a route glob takes the newest commit date of those
+    /// sources as its lastmod: built output is usually not tracked by git.
+    #[serde(default)]
+    pub sources: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

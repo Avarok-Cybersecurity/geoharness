@@ -196,7 +196,7 @@ fn build_meta_within_the_live_window_passes() {
 }
 
 /// A site that writes its own build meta late in a big `<head>`: the live
-/// check reads only the first BODY_PREFIX_CHARS, so it fails after deploy.
+/// check reads only the first `BODY_PREFIX_CHARS`, so it fails after deploy.
 #[test]
 fn build_meta_past_the_live_window_fails_before_deploy() {
     use geoharness_core::live::{BODY_PREFIX_CHARS, build_meta};
@@ -208,7 +208,12 @@ fn build_meta_past_the_live_window_fails_before_deploy() {
     let r = run(&input);
     fails(&r, "index.build_meta_early", Some("/guide/"));
     let f = support::findings(&r, "index.build_meta_early");
-    assert!(f.iter().filter(|x| !x.passed).all(|x| x.evidence.contains("8192")), "{f:#?}");
+    assert!(
+        f.iter()
+            .filter(|x| !x.passed)
+            .all(|x| x.evidence.contains("8192")),
+        "{f:#?}"
+    );
 }
 
 /// Measured in UTF-16 code units, as the host slices the body (`String.slice`).
@@ -222,7 +227,8 @@ fn build_meta_window_counts_utf16_units_not_bytes() {
     let before = html[..head_end].encode_utf16().count() + "<style></style>".len() + meta.len();
     // 'é' is 2 bytes but 1 UTF-16 unit: the page fits by units, and would not by bytes.
     let pad = "é".repeat(BODY_PREFIX_CHARS - before);
-    input.pages[1].html = html.replacen("</head>", &format!("<style>{pad}</style>{meta}</head>"), 1);
+    input.pages[1].html =
+        html.replacen("</head>", &format!("<style>{pad}</style>{meta}</head>"), 1);
     all_pass(&run(&input), "index.build_meta_early");
 }
 

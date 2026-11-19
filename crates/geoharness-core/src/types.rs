@@ -22,6 +22,10 @@ pub struct SiteInput {
     pub env: BTreeMap<String, String>,
     pub pages: Vec<PageInput>,
     pub existing: Existing,
+    /// Newest commit date (`YYYY-MM-DDTHH:MM:SSZ`, UTC) of each source glob
+    /// of `config.content.sources` that matched a committed file; a glob
+    /// matching none is left out.
+    pub source_lastmod: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
