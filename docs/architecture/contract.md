@@ -37,7 +37,7 @@ Error codes (stable; `SiteOutput.warnings` reuse the shape):
 | `robots.conflict` | The site's robots.txt has different rules for a configured token |
 | `headers.too_many_rules` | `_headers` would exceed 100 rules |
 
-Warning codes: `page.no_main` (selector matched nothing; `<body>` used), `page.jsonld_invalid`, `output.existing_kept` (site ships its own llms.txt or sitemap.xml; kept, not generated), `llms.section_empty`, `rewrite.mixed_layout`, `headers.csp_extended` (`analytics.cloudflareWebAnalytics = true` extended the site's CSP; `path` = `_headers`).
+Warning codes: `page.no_main` (selector matched nothing; `<body>` used), `page.jsonld_invalid`, `output.existing_kept` (site ships its own llms.txt or sitemap.xml; kept, not generated), `llms.section_empty`, `rewrite.mixed_layout`, `headers.csp_extended` (`analytics.cloudflareWebAnalytics = true` extended the site's CSP; `path` = `_headers`), `page.no_lastmod` (one warning naming the pages left without a lastmod; `path` = `content.sources`).
 
 ## 1. `parseConfig(toml: string): Result<SiteConfig>`
 
@@ -72,6 +72,9 @@ interface SiteInput {
   env: Record<string, string>;         // ONLY the names in config.env; host enforces, core re-checks
   pages: PageInput[];
   existing: { robots?: string; headers?: string; llms?: string; sitemap?: string };
+  hosts: string[];                     // the action's domains (lower case, no port); includes the origin's host
+  sourceLastmod: Record<string, string>; // per source glob of content.sources: newest commit, UTC "YYYY-MM-DDTHH:MM:SSZ";
+                                       // globs git has no commit for are left out
 }
 interface PageInput {
   route: string;                       // "/", "/about/"
@@ -83,7 +86,7 @@ interface PageInput {
 interface SiteOutput {
   files: OutFile[];                    // rewritten HTML, md twins, robots.txt, llms.txt, llms-full.txt,
                                        // sitemap.xml, _headers, <indexnow-key>.txt
-  rewriteRules: RewriteRule[];         // zone URL Rewrite rules for this host (Accept negotiation)
+  rewriteRules: RewriteRule[];         // zone URL Rewrite rules for every host in `hosts` (Accept negotiation)
   pages: PageSummary[];
   warnings: CoreError[];
 }
@@ -99,7 +102,8 @@ Rules the core enforces:
 - Head injection only fills what the page lacks (never overrides an author's tag): canonical, `rel=alternate type=text/markdown`, `rel=describedby` → `/llms.txt`, OG/Twitter, minimal JSON-LD, `<meta name="build">`.
 - Templating: `{{geo.build_id}}`, `{{geo.lastmod}}`, `{{env.NAME}}` (declared names only; an undeclared name is an error, not an empty string).
 - `_headers`: the site's own block comes first, then GeoHarness's block. Each URL pattern appears once: a GeoHarness rule whose pattern the site already uses is written inside that site rule between indented `# BEGIN GeoHarness`/`# END GeoHarness` lines (Cloudflare combines matching rules, so production sees the same headers, and `wrangler dev`, which keeps only the last rule per pattern, serves what production serves). The site's own lines are otherwise verbatim, except that `analytics.cloudflareWebAnalytics = true` extends its `Content-Security-Policy` values for the Web Analytics beacon (warning `headers.csp_extended`). Total rules ≤ 100 or error.
-- `rewriteRules`: three rules (directory, bare path, `.html`), each guarded by `http.host eq "<host>"` and `any(http.request.headers["accept"][*] contains "text/markdown")`. Descriptions start with `geoharness:<host>`. Directory: `ends_with(path, "/")` → `concat(path, "index.md")`. `.html`: `http.request.uri.path.extension eq "html"` → `wildcard_replace(path, "*.html", "${1}.md")`. Bare path: `not ends_with(path, "/") and http.request.uri.path.extension eq ""` → `concat(path, "/index.md")` when most pages are `x/index.html`, else `concat(path, ".md")` (a mixed site gets `rewrite.mixed_layout`). Requests with any other extension (assets, `.md` itself) never match.
+- `rewriteRules`: for each host in `hosts`, in order, three rules (directory, bare path, `.html`), each guarded by `http.host eq "<host>"` and `any(http.request.headers["accept"][*] contains "text/markdown")`. Descriptions start with `geoharness:<host>`. Directory: `ends_with(path, "/")` → `concat(path, "index.md")`. `.html`: `http.request.uri.path.extension eq "html"` → `wildcard_replace(path, "*.html", "${1}.md")`. Bare path: `not ends_with(path, "/") and http.request.uri.path.extension eq ""` → `concat(path, "/index.md")` when most pages are `x/index.html`, else `concat(path, ".md")` (a mixed site gets `rewrite.mixed_layout`). Requests with any other extension (assets, `.md` itself) never match.
+- lastmod: a page whose route matches a `content.sources` route glob takes the newest `sourceLastmod` date among the source globs of every matching entry; otherwise the adapter's `lastmod`. Never the current time. Pages left without one get the `page.no_lastmod` warning.
 - `content.exclude` routes are passed through (templated only): no twin, no injection, not in llms/sitemap. Pages that are `noindex` or disallowed for `*` by the merged robots.txt get a twin but are left out of `llms.txt`, `llms-full.txt` and `sitemap.xml`.
 - `existing.llms` / `existing.sitemap`, when present, are kept as the site's own and not regenerated (`output.existing_kept` warning); `llms-full.txt` is always generated. robots.txt and `_headers` are merged.
 - robots.txt: the site's lines are kept in order and GeoHarness's block follows them. `Content-Signal` is site-wide policy and a crawler reads only the most specific group naming it (RFC 9309), so every group carries exactly one signal line: generated groups always, and each site group without one gets the configured line right after its `User-agent` lines (the only line GeoHarness adds to the site's part). A site group that states a different signal is a `robots.conflict`; a configured token the site already names with the same rules is not repeated, with different rules it is a `robots.conflict`.
@@ -119,7 +123,7 @@ interface AuditInput {
   robots: string; headers: string; llms?: string; sitemap: string;
   live?: LiveObservation[];            // present only for the post-deploy audit
 }
-interface LiveObservation { url: string; userAgent: string; accept: string; status: number; headers: Record<string, string>; bodyPrefix: string; bodySuffix: string } // first / last 8192 characters
+interface LiveObservation { url: string; userAgent: string; accept: string; status: number; headers: Record<string, string>; bodyPrefix: string; bodySuffix: string } // first / last BODY_PREFIX_CHARS (8192) UTF-16 code units
 interface AuditReport {
   score: number;                       // 0–100, weighted
   categories: { id: string; title: string; weight: number; score: number }[];
@@ -149,7 +153,7 @@ The core decides what to fetch after deploy; the host fetches and returns `LiveO
 interface LiveRequest { url: string; userAgent: string; accept: string; expect: { status: number; contentType?: string; varyIncludes?: string; bodyIncludes?: string } }
 ```
 
-`expect.contentType` is a case-insensitive substring of `Content-Type`; `expect.varyIncludes` is a case-insensitive token of `Vary`; `expect.bodyIncludes` must occur in `bodyPrefix`. `audit` re-derives this plan and matches each `LiveObservation` to its request by `(url, userAgent, accept)`; a planned request with no observation fails.
+`expect.contentType` is a case-insensitive substring of `Content-Type`; `expect.varyIncludes` is a case-insensitive token of `Vary`; `expect.bodyIncludes` must occur in `bodyPrefix`. The window is the core's `live::BODY_PREFIX_CHARS`, exported to the host as `BODY_PREFIX_CHARS` in the generated `types.ts`; the static audit's blocking `index.build_meta_early` checks every page's build meta ends inside it, so a page that would fail the live build check fails before deploy. `audit` re-derives this plan and matches each `LiveObservation` to its request by `(url, userAgent, accept)`; a planned request with no observation fails.
 
 Matrix: agent Accept (`text/markdown, text/html, */*`) and browser Accept per sampled route (`/` plus up to 4 others evenly spaced over the sorted routes); the 8 AI user agents (GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-User, Claude-SearchBot, PerplexityBot, Perplexity-User) on `/`; `/robots.txt`, `/llms.txt`, `/sitemap.xml`; build meta equals `buildId`.
 

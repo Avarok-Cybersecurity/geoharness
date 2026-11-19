@@ -16,6 +16,20 @@ All notable changes to GeoHarness are documented here. The format follows
 
 ### Fixed
 
+- Rewrite rules for every domain, not only the host of `site.origin`: `www.` and other listed hosts answered
+  `Accept: text/markdown` with HTML. The zstd Compression Rule covers every domain too. Before deploy, the zone's
+  URL Rewrite budget (10 on Free, 25 Pro, 50 Business, 300 Enterprise) is checked against GeoHarness's 3 rules per
+  domain plus the zone's other rules, naming them; every domain must be in the zone of `site.origin`'s host.
+- A domain that still has its own A/AAAA/CNAME records (a Pages → Workers move) failed only after upload, as
+  "wrangler deploy exited with 1". Preflight now finds them before the build and explains the zero-downtime move;
+  wrangler and lhci failures report the tool's own `[ERROR]` block and Cloudflare error codes (e.g. 100117).
+- Rollback on a migration's first run "rolled back" to the Worker's own earlier failed upload. A version counts as
+  the previous production only if one of the domains was a Custom Domain of the Worker before the run; otherwise the
+  run says there is no prior production version on the Worker and that the previous host (e.g. Pages) is not
+  something GeoHarness can roll back to. Rolling back to the version serving now is refused.
+- A local run without `GITHUB_STEP_SUMMARY` and `GITHUB_OUTPUT` built, deployed and verified, then failed writing
+  the summary. Both are required inputs of the run now, checked with the others before anything starts.
+- sitemap lastmod was missing for built output (gitignored, so git had no date): see `content.sources`.
 - `<meta name="build">` is injected at the top of `<head>` (after a charset declaration) instead of its end. The
   live build check reads the first 8,192 characters, so a page with a large inline `<style>` or JSON-LD failed
   verification after deploying and was rolled back, though it served the right build. Found migrating
@@ -36,6 +50,17 @@ All notable changes to GeoHarness are documented here. The format follows
 
 ### Added
 
+- `takeover-dns` input (workers target, no default, needed only when a domain still has its own DNS records):
+  `true` uploads the Worker, then per host deletes those records and at once binds the host as a Worker Custom
+  Domain (zero downtime; the records are put back if the bind fails); `false` leaves the move to you. README:
+  "Moving from Pages to Workers".
+- Blocking static check `index.build_meta_early`: every page's `<meta name="build">` must end within the first
+  8,192 characters, the window the live check reads, so a site's own late build meta fails before deploy. The core
+  owns the window (`BODY_PREFIX_CHARS`, generated into the host's types).
+- `[content] sources`: route glob → source path globs; a built page's lastmod is the newest commit of its sources.
+  Pages left without a lastmod are named in a `page.no_lastmod` warning.
+- Job summary: a Lighthouse table per gate, URL × performance, accessibility, best practices and SEO (median of the
+  runs), with the failing audit ids.
 - Post-deploy Lighthouse gate on the live URLs; on a failed live audit or gate, `rollback-on-failure: true`
   (required when deploying, no default) rolls production back to the version it served before.
 - `[analytics] cloudflareWebAnalytics`: extends the site's CSP for the injected Web Analytics beacon; without

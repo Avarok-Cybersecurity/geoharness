@@ -22,6 +22,7 @@ Parsed by `parseConfig` (contract §1). Keys are camelCase. **Unknown keys are e
 | `bots[].disallow` | string[] | no | `[]` (a group may be allow-only) | each starts with `/` or `*` |
 | `content.mainSelector` | string | yes | — | valid CSS selector; when a page has no match its `<body>` is used with a `page.no_main` warning |
 | `content.exclude` | string[] | no | `[]` (excluding nothing changes nothing) | route globs starting with `/` |
+| `content.sources` | table of string → string[] | no | `{}` (pages keep the lastmod the adapter finds: the git date of a tracked output file or of its source markdown) | keys: route globs starting with `/`; values: non-empty lists of git path globs relative to the site directory (no leading `/`, `:` or `!`, no `..`). See [lastmod](#lastmod) |
 | `llms.summary` | string | yes | — | single line (the llms.txt blockquote) |
 | `llms.sections` | array of tables | yes | — | may be empty (`[]`) for an llms.txt with no sections |
 | `llms.sections[].title` | string | yes | — | single line (an H2) |
@@ -38,6 +39,18 @@ Parsed by `parseConfig` (contract §1). Keys are camelCase. **Unknown keys are e
 `content.exclude` and `llms.sections[].routes` are matched against page routes: `*` matches within one path segment, `**` across segments, everything else is literal (`/blog/**`, `/docs/*/`).
 
 `headers.immutable` entries are written verbatim as `_headers` URL patterns, so `*` there is Cloudflare's splat, which crosses `/`.
+
+## lastmod
+
+`lastmod` in `sitemap.xml`, the twin frontmatter and `{{geo.lastmod}}` is a git commit date, never the current time. Adapters date a page by the last commit of its output file when the output is committed, or of the markdown it was generated from (python adapter). Built output is usually gitignored, so for `npm`, `vite-prerender`, `sveltekit-static` and `command` sites map routes to their sources:
+
+```toml
+[content]
+mainSelector = "main"
+sources = { "/" = ["src/pages/index.astro"], "/blog/**" = ["content/blog/**", "src/layouts/Post.astro"] }
+```
+
+GeoHarness asks git for the newest commit touching each source glob (`git log -1 -- ':(glob)<glob>'`, run in the site directory). A page takes the newest date among the globs of every entry whose route glob matches it, which overrides the adapter's date. A page no entry maps keeps the adapter's date; pages left with none are listed in one `page.no_lastmod` warning and their sitemap entries go without `<lastmod>`. There is deliberately no fallback to "the last commit anywhere in the site": that date moves for every edit, which would claim every page changed and teach crawlers to ignore the field.
 
 ## Templates
 
