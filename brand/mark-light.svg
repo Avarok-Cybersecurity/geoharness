@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="GeoHarness">
+  <defs><linearGradient id="g" x1="8" y1="56" x2="56" y2="8" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4338CA"/><stop offset="1" stop-color="#0E7490"/></linearGradient></defs>
+  <g fill="none" stroke="url(#g)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M48.97 15.03 A24 24 0 1 0 56 32 H36" stroke-width="5"/>
+    <ellipse cx="32" cy="32" rx="9.5" ry="23.5" stroke-width="2.5" opacity=".5"/>
+  </g>
+  <g fill="url(#g)"><circle cx="35" cy="32" r="4.2"/></g>
+</svg>
