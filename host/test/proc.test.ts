@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { nodeNet } from '../src/io/node/net.js';
-import { nodeProc } from '../src/io/node/proc.js';
+import { childEnv, nodeProc } from '../src/io/node/proc.js';
 import { recordingLog } from './helpers/io.js';
 
 const alive = (pid: number): boolean => {
@@ -50,6 +50,28 @@ describe('nodeProc.start', () => {
     const running = nodeProc(recordingLog()).start(process.execPath, ['-e', 'process.exit(3)'], { cwd: process.cwd(), env: {}, redact: [], stream: false });
     expect((await running.exited).code).toBe(3);
     await running.stop();
+  });
+});
+
+describe('child environment', () => {
+  it('never hands the action inputs (and so the Cloudflare token) to a child', () => {
+    const env = childEnv({ PATH: '/bin', INPUT_CLOUDFLARE_API_TOKEN: 'tok', INPUT_SITE_PATH: 'site' }, { EXTRA: '1' });
+    expect(env).toEqual({ PATH: '/bin', EXTRA: '1' });
+  });
+
+  it('passes a credential only when the caller gives it explicitly', () => {
+    expect(childEnv({ INPUT_CLOUDFLARE_API_TOKEN: 'tok' }, { CLOUDFLARE_API_TOKEN: 'tok' })).toEqual({ CLOUDFLARE_API_TOKEN: 'tok' });
+  });
+
+  it('applies to real children: a build script cannot read INPUT_CLOUDFLARE_API_TOKEN', async () => {
+    process.env.INPUT_CLOUDFLARE_API_TOKEN = 'leak-canary';
+    try {
+      const r = await nodeProc(recordingLog()).run(process.execPath, ['-e', 'process.stdout.write(String(process.env.INPUT_CLOUDFLARE_API_TOKEN))'],
+        { cwd: process.cwd(), env: {}, timeoutMs: 10_000, redact: [], stream: false });
+      expect(r.stdout).toBe('undefined');
+    } finally {
+      delete process.env.INPUT_CLOUDFLARE_API_TOKEN;
+    }
   });
 });
 
