@@ -141,7 +141,7 @@ Composite actions do not enforce `required`, so GeoHarness validates every input
 | `geo-min-score` | yes | — | Minimum GEO score (0–100) for the build audit and the live audit. |
 | `extra-optimizations` | no | `all` | Free zone optimizations, as tokens applied left to right: all, none, &lt;id>, -&lt;id>. Ids: email_obfuscation, rocket_loader, early_hints, http3, brotli, smart_tiered_cache, zstd, bot_fight_mode, ai_bots_protection. Example: "all -rocket_loader". |
 | `deploy` | no | `true` | true deploys, configures the zone, verifies live and pings IndexNow. false is a dry run for pull requests: build, process, GEO audit and Lighthouse only, with no Cloudflare API call. |
-| `rollback-on-failure` | no | — | Required when deploy is true (no default). true: when the post-deploy verification (live GEO audit or the production Lighthouse gate) fails, put production back on the version it served before this deploy (wrangler rollback for workers, the Pages rollback API for pages), then fail. false: fail and leave the new build live. A first deploy has nothing to roll back to and just fails. |
+| `rollback-on-failure` | no | — | Required when deploy is true (no default). true: when the post-deploy verification (live GEO audit or the production Lighthouse gate) fails or cannot complete, put production back on the version it served before this deploy (wrangler rollback for workers, the Pages rollback API for pages), then fail. false: fail and leave the new build live. A first deploy has nothing to roll back to and just fails. |
 | `rag` | no | `false` | Coming in v1.1 (RAG index export). Not implemented yet; setting it to true fails the run. |
 
 ### Outputs
@@ -218,7 +218,7 @@ Preflight probes each enabled feature and fails listing every missing group befo
 | `_headers` rules | 100 | Site's own plus GeoHarness's; more is a build error |
 | Markdown for Agents | Pro and above | Not used; reproduced with twins and rules |
 
-**Fail modes.** Missing permissions fail preflight. Without zone access GeoHarness falls back to a negotiate Worker that runs first; it counts against the 100,000 requests/day of Workers Free and past that Cloudflare answers HTTP 429 (error 1027) until the daily reset; the run warns. A failed audit or pre-deploy Lighthouse gate stops before deploy, so the live site keeps its previous build. Verify waits up to 5 minutes for the edge to serve the new build; a failed live audit or production Lighthouse gate then rolls back when `rollback-on-failure` is true. Only rules tagged `geoharness:<host>` are ever changed.
+**Fail modes.** Missing permissions fail preflight. Without zone access GeoHarness falls back to a negotiate Worker that runs first; it counts against the 100,000 requests/day of Workers Free and past that Cloudflare answers HTTP 429 (error 1027) until the daily reset; the run warns. A failed audit or pre-deploy Lighthouse gate stops before deploy, so the live site keeps its previous build. Verify waits up to 5 minutes for the edge to serve the new build; a failed live audit or production Lighthouse gate then rolls back when `rollback-on-failure` is true, and so does a verification that cannot complete (the build never goes live, or a live request still fails after 3 tries 2 s apart). Only rules tagged `geoharness:<host>` are ever changed.
 
 ## GEO score
 

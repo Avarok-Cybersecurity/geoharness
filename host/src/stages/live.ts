@@ -1,5 +1,6 @@
 import type { LiveObservation, LiveRequest } from '../core/types-index.js';
-import type { HostIO } from '../io/types.js';
+import type { HostIO, HttpResponse } from '../io/types.js';
+import { describeError } from '../lib/errors.js';
 import { buildMetaContent } from '../lib/gate.js';
 
 export const LIVE_TIMEOUT_MS = 20_000;
@@ -8,17 +9,38 @@ export const LIVE_TIMEOUT_MS = 20_000;
  * window of text, and for scripts the edge injects before </body>.
  */
 export const BODY_PREFIX_CHARS = 8192;
+/**
+ * A live request that throws (a reset or refused connection, a timeout; not an HTTP status) is tried this many
+ * times in all, LIVE_RETRY_DELAY_MS apart. A runner's network blips: one reset on one of the plan's requests
+ * killed a deploy's verification (run 44603425106) while the same plan, re-run, answered 200 throughout. Three
+ * tries ride out a blip; a site that is really unreachable still fails within seconds of its timeouts.
+ */
+export const LIVE_ATTEMPTS = 3;
+export const LIVE_RETRY_DELAY_MS = 2_000;
 
 /** Fetches one planned request without following redirects, so the observed status is the real one. */
 export async function observe(io: HostIO, req: LiveRequest): Promise<LiveObservation> {
-  const res = await io.http.request({
-    method: 'GET', url: req.url, headers: { 'user-agent': req.userAgent, accept: req.accept },
-    timeoutMs: LIVE_TIMEOUT_MS, redirect: 'manual',
-  });
+  const res = await requestWithRetry(io, req);
   const headers: Record<string, string> = {};
   for (const [k, v] of Object.entries(res.headers)) headers[k.toLowerCase()] = v;
   return { url: req.url, userAgent: req.userAgent, accept: req.accept, status: res.status, headers,
     bodyPrefix: res.body.slice(0, BODY_PREFIX_CHARS), bodySuffix: res.body.slice(-BODY_PREFIX_CHARS) };
+}
+
+async function requestWithRetry(io: HostIO, req: LiveRequest): Promise<HttpResponse> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await io.http.request({
+        method: 'GET', url: req.url, headers: { 'user-agent': req.userAgent, accept: req.accept },
+        timeoutMs: LIVE_TIMEOUT_MS, redirect: 'manual',
+      });
+    } catch (e) {
+      const what = `GET ${req.url} (${req.userAgent}, Accept: ${req.accept}): ${describeError(e)}`;
+      if (attempt >= LIVE_ATTEMPTS) throw new Error(`${what} (${attempt} attempts)`, { cause: e });
+      io.log.warn(`attempt ${attempt} of ${LIVE_ATTEMPTS} failed, retrying in ${LIVE_RETRY_DELAY_MS / 1000}s: ${what}`);
+      await io.clock.sleep(LIVE_RETRY_DELAY_MS);
+    }
+  }
 }
 
 export interface PollOptions { url: string; buildId: string; intervalMs: number; timeoutMs: number }

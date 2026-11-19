@@ -62,7 +62,7 @@ inputs:
   rollback-on-failure:
     description: >-
       Required when deploy is true (no default). true: when the post-deploy verification (live GEO audit or the
-      production Lighthouse gate) fails, put production back on the version it served before this deploy
+      production Lighthouse gate) fails or cannot complete, put production back on the version it served before this deploy
       (wrangler rollback for workers, the Pages rollback API for pages), then fail. false: fail and leave the new
       build live. A first deploy has nothing to roll back to and just fails.
     required: false

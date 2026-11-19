@@ -1,4 +1,5 @@
 import { unwrap } from '../core/core.js';
+import { describeError } from '../lib/errors.js';
 import { gateFailures } from '../lib/gate.js';
 import { need, type StageContext } from './context.js';
 import { auditedUrls } from './lighthouse.js';
@@ -36,14 +37,24 @@ async function liveLighthouse(ctx: StageContext): Promise<string[]> {
   return result.passed ? [] : [`Lighthouse on the live site is below 100 (median of 3 runs):\n    - ${describeFailures(result).replace(/\n {2}- /g, '\n    - ')}`];
 }
 
+/** Every failure of the live checks; a check that cannot complete (it throws) is a failure, not a crash. */
+async function liveFailures(ctx: StageContext, url: string): Promise<string[]> {
+  try {
+    await waitForBuild(ctx.io, { url, buildId: ctx.inputs.buildId, ...VERIFY_POLL });
+    return [...await liveAudit(ctx), ...await liveLighthouse(ctx)];
+  } catch (e) {
+    return [`verification could not complete: ${describeError(e)}`];
+  }
+}
+
 /**
  * Waits for the deployed build, then runs the live GEO audit and the production Lighthouse gate. When either
- * fails, production is rolled back to the version recorded before deploy if `rollback-on-failure` is true.
+ * fails or cannot complete (the build never goes live, a request keeps failing), production is rolled back to
+ * the version recorded before deploy if `rollback-on-failure` is true: an unverified build is not kept live.
  */
 export async function verifyStage(ctx: StageContext): Promise<void> {
   const { url } = need(ctx.state, 'deploy', 'verify');
-  await waitForBuild(ctx.io, { url, buildId: ctx.inputs.buildId, ...VERIFY_POLL });
-  const failures = [...await liveAudit(ctx), ...await liveLighthouse(ctx)];
+  const failures = await liveFailures(ctx, url);
   if (failures.length === 0) return;
   const reason = `live verification failed:\n${failures.map((f) => `  - ${f}`).join('\n')}`;
   if (!ctx.inputs.rollbackOnFailure) {
