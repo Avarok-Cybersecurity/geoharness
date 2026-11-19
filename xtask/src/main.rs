@@ -1,8 +1,12 @@
-//! `cargo run -p xtask -- gen-types [--check]`
+//! `cargo run -p xtask -- gen-types|gen-checks [--check]`
 //!
-//! Writes `host/src/core/types.ts` from the Rust wire types (ts-rs). With
-//! `--check`, compares instead and exits 1 when the file is stale. This tool
-//! is the only workspace member that performs I/O; the crates stay pure.
+//! `gen-types` writes `host/src/core/types.ts` from the Rust wire types
+//! (ts-rs); `gen-checks` writes `docs/generated/checks.json` from the audit
+//! catalog. With `--check`, compares instead and exits 1 when the file is
+//! stale. This tool is the only workspace member that performs I/O; the
+//! crates stay pure.
+
+mod checks;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -74,33 +78,37 @@ fn render() -> String {
     out
 }
 
-fn target() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../host/src/core/types.ts")
+fn target(rel: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join(rel)
 }
+
+const USAGE: &str = "usage: cargo run -p xtask -- gen-types|gen-checks [--check]";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let check = match args
-        .iter()
-        .map(String::as_str)
-        .collect::<Vec<_>>()
-        .as_slice()
-    {
-        ["gen-types"] => false,
-        ["gen-types", "--check"] => true,
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let (task, check) = match args.as_slice() {
+        [task] => (*task, false),
+        [task, "--check"] => (*task, true),
         _ => {
-            eprintln!("usage: cargo run -p xtask -- gen-types [--check]");
+            eprintln!("{USAGE}");
             return ExitCode::from(2);
         }
     };
-    let generated = render();
-    let path = target();
+    let (generated, path) = match task {
+        "gen-types" => (render(), target("host/src/core/types.ts")),
+        "gen-checks" => (checks::render(), target("docs/generated/checks.json")),
+        _ => {
+            eprintln!("{USAGE}");
+            return ExitCode::from(2);
+        }
+    };
     if check {
         return match std::fs::read_to_string(&path) {
             Ok(current) if current == generated => ExitCode::SUCCESS,
             Ok(_) => {
                 eprintln!(
-                    "{} is stale: run `cargo run -p xtask -- gen-types`",
+                    "{} is stale: run `cargo run -p xtask -- {task}`",
                     path.display()
                 );
                 ExitCode::FAILURE

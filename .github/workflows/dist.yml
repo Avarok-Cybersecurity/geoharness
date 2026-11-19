@@ -1,6 +1,6 @@
 name: dist
 
-# dist/ ships with the action (uses: Avarok-Cybersecurity/geoharness@v1 runs dist/cli.mjs, which loads
+# dist/ ships with the action (Avarok-Cybersecurity/geoharness@v1 runs dist/cli.mjs, which loads
 # dist/core/geoharness_wasm.js). This job rebuilds both from source and fails if the committed copy differs.
 
 on:

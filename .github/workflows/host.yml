@@ -31,5 +31,7 @@ jobs:
         run: npm run lint
       - name: Tests
         run: npm test
-      - name: dist/ is up to date
+      - name: dist/cli.mjs is up to date
         run: npm run check:dist
+      - name: Generated README and site sections are current
+        run: npm run check:docs

@@ -13,4 +13,13 @@ export default tseslint.config(
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
     },
   },
+  {
+    // Repository tooling in plain JavaScript (docs generator, og renderer, site build): linted without types.
+    files: ['scripts/**/*.mjs', 'site/build.mjs'],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      parserOptions: { project: false, projectService: false, program: null },
+      globals: { console: 'readonly', process: 'readonly', URL: 'readonly' },
+    },
+  },
 );

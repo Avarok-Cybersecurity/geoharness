@@ -44,3 +44,5 @@ jobs:
         run: node scripts/smoke-wasm.mjs
       - name: generated TypeScript types are current
         run: cargo run -p xtask -- gen-types --check
+      - name: generated check catalog (docs/generated/checks.json) is current
+        run: cargo run -p xtask -- gen-checks --check

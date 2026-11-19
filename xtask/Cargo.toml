@@ -1,6 +1,6 @@
 [package]
 name = "xtask"
-description = "Repository tasks: generate (or check) host/src/core/types.ts from the Rust types."
+description = "Repository tasks: generate (or check) host/src/core/types.ts and docs/generated/checks.json from the Rust sources."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -11,6 +11,7 @@ publish = false
 geoharness-core = { workspace = true, features = ["ts"] }
 geoharness-audit = { workspace = true, features = ["ts"] }
 ts-rs.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

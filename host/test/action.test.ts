@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -26,9 +26,26 @@ describe('action.yml', () => {
   });
 });
 
-describe('host workflow', () => {
-  it('pins every action by full commit SHA', () => {
-    const wf = readFileSync(join(import.meta.dirname, '..', '..', '.github', 'workflows', 'host.yml'), 'utf8');
-    for (const m of wf.matchAll(/uses:\s*(\S+)/g)) expect(m[1]).toMatch(/@[0-9a-f]{40}$/);
+const WORKFLOWS = join(import.meta.dirname, '..', '..', '.github', 'workflows');
+const workflow = (name: string): string => readFileSync(join(WORKFLOWS, name), 'utf8');
+
+describe('workflows', () => {
+  it('pin every remote action by full commit SHA (the local action ./ is this checkout)', () => {
+    for (const name of readdirSync(WORKFLOWS).filter((f) => f.endsWith('.yml'))) {
+      for (const m of workflow(name).matchAll(/uses:\s*(\S+)/g)) {
+        if (m[1] !== './') expect(m[1], name).toMatch(/@[0-9a-f]{40}$/);
+      }
+    }
+  });
+
+  it('dogfood: pull requests never deploy and never receive Cloudflare secrets', () => {
+    const wf = workflow('deploy.yml');
+    const dry = wf.slice(wf.indexOf('\n  dry-run:'));
+    expect(dry).toContain("if: github.event_name == 'pull_request'");
+    expect(dry).toContain('deploy: "false"');
+    expect(dry).not.toContain('secrets.');
+    const deploy = wf.slice(wf.indexOf('\n  deploy:'), wf.indexOf('\n  dry-run:'));
+    expect(deploy).toContain("github.ref == 'refs/heads/main'");
+    expect(deploy).toContain('cancel-in-progress: false');
   });
 });
