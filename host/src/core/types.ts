@@ -74,6 +74,12 @@ export type SiteInput = { config: SiteConfig,
  */
 buildId: string, 
 /**
+ * Host names the site is served on (the action's `domains`, lower case,
+ * no port); each gets its own tagged rewrite rules. Includes the
+ * origin's host.
+ */
+hosts: Array<string>, 
+/**
  * Only the names in `config.env`; the core re-checks.
  */
 env: { [key in string]: string }, pages: Array<PageInput>, existing: Existing, };

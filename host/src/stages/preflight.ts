@@ -53,6 +53,11 @@ export async function preflight(ctx: StageContext): Promise<void> {
     if (inputs.optimizations.size > 0) io.log.warn(`zone optimizations skipped without zone access: ${[...inputs.optimizations].join(', ')}`);
   } else {
     io.log.info(`zone ${zone.name} (${zone.id}) serves ${host}`);
+    for (const d of inputs.domains.filter((x) => x !== host)) {
+      const z = await findZone(ctx, d);
+      // Rewrite rules, the zone settings and the DNS checks are all written in one zone.
+      if (z?.id !== zone.id) throw new Error(`${d} is not in zone ${zone.name}, the zone of ${host} (${z === undefined ? 'no zone found' : `it is in ${z.name}`}); every domain must be served by the same zone`);
+    }
     if (inputs.target === 'pages') features.push('pages-custom-domain');
     features.push('rewrite-rules', ...inputs.optimizations);
     optimizations = [...inputs.optimizations];

@@ -13,5 +13,20 @@
     "description": "geoharness:example.com markdown twin (.html)",
     "expression": "(http.host eq \"example.com\" and any(http.request.headers[\"accept\"][*] contains \"text/markdown\")) and http.request.uri.path.extension eq \"html\"",
     "pathExpression": "wildcard_replace(http.request.uri.path, \"*.html\", \"${1}.md\")"
+  },
+  {
+    "description": "geoharness:www.example.com markdown twin (directory)",
+    "expression": "(http.host eq \"www.example.com\" and any(http.request.headers[\"accept\"][*] contains \"text/markdown\")) and ends_with(http.request.uri.path, \"/\")",
+    "pathExpression": "concat(http.request.uri.path, \"index.md\")"
+  },
+  {
+    "description": "geoharness:www.example.com markdown twin (bare path)",
+    "expression": "(http.host eq \"www.example.com\" and any(http.request.headers[\"accept\"][*] contains \"text/markdown\")) and not ends_with(http.request.uri.path, \"/\") and http.request.uri.path.extension eq \"\"",
+    "pathExpression": "concat(http.request.uri.path, \"/index.md\")"
+  },
+  {
+    "description": "geoharness:www.example.com markdown twin (.html)",
+    "expression": "(http.host eq \"www.example.com\" and any(http.request.headers[\"accept\"][*] contains \"text/markdown\")) and http.request.uri.path.extension eq \"html\"",
+    "pathExpression": "wildcard_replace(http.request.uri.path, \"*.html\", \"${1}.md\")"
   }
 ]

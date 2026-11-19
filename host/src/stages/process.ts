@@ -25,7 +25,7 @@ export async function processStage(ctx: StageContext): Promise<void> {
     if (text !== undefined) existing[key] = text;
   }
 
-  const out = unwrap('processSite', ctx.core.processSite({ config, buildId: ctx.inputs.buildId, env, pages, existing }));
+  const out = unwrap('processSite', ctx.core.processSite({ config, buildId: ctx.inputs.buildId, hosts: ctx.inputs.domains, env, pages, existing }));
   for (const f of out.files) await writeOutputFile(ctx.io.fs, outputDir, f.file, f.contents);
   for (const w of out.warnings) ctx.io.log.warn(`core: ${formatCoreError(w).trim()}`);
   ctx.state.processed = { pages: out.pages, rewriteRules: out.rewriteRules, warnings: out.warnings, files: out.files.map((f) => f.file) };

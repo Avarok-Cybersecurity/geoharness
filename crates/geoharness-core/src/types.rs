@@ -14,6 +14,10 @@ pub struct SiteInput {
     pub config: SiteConfig,
     /// Commit SHA.
     pub build_id: String,
+    /// Host names the site is served on (the action's `domains`, lower case,
+    /// no port); each gets its own tagged rewrite rules. Includes the
+    /// origin's host.
+    pub hosts: Vec<String>,
     /// Only the names in `config.env`; the core re-checks.
     pub env: BTreeMap<String, String>,
     pub pages: Vec<PageInput>,

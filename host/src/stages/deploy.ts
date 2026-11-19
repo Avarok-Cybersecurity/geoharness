@@ -4,6 +4,7 @@ import { findZoneForHost } from '../io/cloudflare/zones.js';
 import { need, primaryHost, type StageContext } from './context.js';
 import { takeOverHosts } from './dns-takeover.js';
 import { recordPrevious } from './rollback.js';
+import { checkRuleBudget } from './zone.js';
 import { runToolOk, wranglerEnv } from './tools.js';
 import { workerConfig } from './worker-config.js';
 
@@ -74,6 +75,7 @@ async function deployPages(ctx: StageContext): Promise<void> {
 }
 
 export async function deployStage(ctx: StageContext): Promise<void> {
+  await checkRuleBudget(ctx);
   const host = primaryHost(need(ctx.state, 'config', 'deploy'));
   const prev = await previousSitemap(ctx, host);
   if (prev !== undefined) ctx.state.previousSitemap = prev;

@@ -107,7 +107,11 @@ pub fn process_site(input: &SiteInput) -> Result<SiteOutput, Vec<CoreError>> {
     }
     Ok(SiteOutput {
         files,
-        rewrite_rules: rewrite::rules(host_without_port(config.host()), bare),
+        rewrite_rules: input
+            .hosts
+            .iter()
+            .flat_map(|h| rewrite::rules(h, bare))
+            .collect(),
         pages: processed.into_iter().map(|p| p.summary).collect(),
         warnings,
     })

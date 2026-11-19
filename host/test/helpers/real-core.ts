@@ -27,6 +27,7 @@ export function fixtureSiteInput(core: Core): SiteInput {
   return {
     config,
     buildId: FIXTURE_BUILD_ID,
+    hosts: ['example.com', 'www.example.com'],
     env: { PUBLIC_NAME: 'the docs team' },
     pages: [
       page('/', 'index.html', { lastmod: '2026-11-10T09:00:00Z' }),
