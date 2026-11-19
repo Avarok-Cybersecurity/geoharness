@@ -79,7 +79,9 @@ fn render() -> String {
 }
 
 fn target(rel: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join(rel)
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join(rel)
 }
 
 const USAGE: &str = "usage: cargo run -p xtask -- gen-types|gen-checks [--check]";
