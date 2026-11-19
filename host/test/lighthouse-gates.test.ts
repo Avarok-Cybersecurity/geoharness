@@ -63,6 +63,8 @@ describe('pre-deploy Lighthouse gate (local wrangler server)', () => {
     const summary = await readFile(h.summary, 'utf8');
     expect(summary).toContain('### Lighthouse (live)');
     expect(summary).toContain('[report](https://storage.example/about/)');
+    expect(summary).toContain('| Page | Performance | Accessibility | Best practices | SEO | Failing audits |');
+    expect(summary).toMatch(/\| \/about\/ \| 100 \| 100 \| 100 \| 100 \| — \|/);
   });
 
   it('fails before deploy, lists the failing audits, and still stops the server', async () => {
@@ -71,6 +73,7 @@ describe('pre-deploy Lighthouse gate (local wrangler server)', () => {
     expect(wranglerCalls(h).some((c) => c.args.includes('deploy'))).toBe(false);
     expect(h.proc.stopped).toBe(1);
     expect(await readFile(h.summary, 'utf8')).toContain('| seo | 92 | robots-txt (robots.txt is valid)');
+    expect(await readFile(h.summary, 'utf8')).toMatch(/\| \/about\/ \| 100 \| 100 \| 100 \| 92 \| `robots-txt` \|/);
   });
 
   it('fails clearly when the local server never becomes ready, and stops it', async () => {

@@ -22,12 +22,12 @@ export async function auditedUrls(ctx: StageContext, origin: string): Promise<st
 export async function lighthouseStage(ctx: StageContext): Promise<void> {
   if (!ctx.inputs.lighthouse) {
     ctx.io.log.info('lighthouse: false — Lighthouse gate skipped');
-    ctx.state.lighthouse = { skipped: true, urls: [], links: {}, failures: [] };
+    ctx.state.lighthouse = { skipped: true, urls: [], links: {}, failures: [], medians: [] };
     return;
   }
   const paths = await auditedUrls(ctx, '');
   const result = await withLocalServer(ctx, paths[0] ?? '/', (origin) => runLighthouse(ctx, paths.map((p) => `${origin}${p}`), 'local'));
-  ctx.state.lighthouse = { skipped: false, urls: result.urls, links: result.links, failures: result.failures };
+  ctx.state.lighthouse = { skipped: false, urls: result.urls, links: result.links, failures: result.failures, medians: result.medians };
   if (!result.passed) {
     throw new Error(`Lighthouse gate failed: every category must score 100 (median of 3 runs):\n  - ${describeFailures(result)}`);
   }

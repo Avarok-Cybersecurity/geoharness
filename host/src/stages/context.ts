@@ -6,10 +6,10 @@ import type { Inputs } from '../inputs.js';
 import type { CfClient } from '../io/cloudflare/client.js';
 import type { Zone } from '../io/cloudflare/zones.js';
 import type { HostIO } from '../io/types.js';
-import type { LighthouseFailure } from '../lib/lighthouse-report.js';
+import type { LighthouseFailure, LighthouseMedian } from '../lib/lighthouse-report.js';
 import type { OptimizationId } from '../lib/optimizations.js';
 
-export interface LighthouseState { skipped: boolean; urls: string[]; links: Record<string, string>; failures: LighthouseFailure[] }
+export interface LighthouseState { skipped: boolean; urls: string[]; links: Record<string, string>; failures: LighthouseFailure[]; medians: LighthouseMedian[] }
 
 /** What production served before this deploy, recorded by deploy so verify can roll back to it. */
 export type PreviousDeployment =

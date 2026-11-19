@@ -28,12 +28,12 @@ async function liveAudit(ctx: StageContext): Promise<string[]> {
 /** The post-deploy Lighthouse gate: the same assertions, against production. */
 async function liveLighthouse(ctx: StageContext): Promise<string[]> {
   if (!ctx.inputs.lighthouse) {
-    ctx.state.liveLighthouse = { skipped: true, urls: [], links: {}, failures: [] };
+    ctx.state.liveLighthouse = { skipped: true, urls: [], links: {}, failures: [], medians: [] };
     return [];
   }
   const config = need(ctx.state, 'config', 'verify');
   const result = await runLighthouse(ctx, await auditedUrls(ctx, config.site.origin), 'live');
-  ctx.state.liveLighthouse = { skipped: false, urls: result.urls, links: result.links, failures: result.failures };
+  ctx.state.liveLighthouse = { skipped: false, urls: result.urls, links: result.links, failures: result.failures, medians: result.medians };
   return result.passed ? [] : [`Lighthouse on the live site is below 100 (median of 3 runs):\n    - ${describeFailures(result).replace(/\n {2}- /g, '\n    - ')}`];
 }
 

@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { asObject, asString, parseJson } from '../lib/json.js';
 import { lighthouseRc } from '../lib/lighthouse-rc.js';
-import { lighthouseFailures, type LighthouseFailure } from '../lib/lighthouse-report.js';
+import { lighthouseFailures, lighthouseMedians, type LighthouseFailure, type LighthouseMedian } from '../lib/lighthouse-report.js';
 import type { StageContext } from './context.js';
 import { runTool, runToolOk } from './tools.js';
 
@@ -13,6 +13,7 @@ export interface LighthouseResult {
   /** Report links by audited URL (temporary public storage). */
   links: Record<string, string>;
   failures: LighthouseFailure[];
+  medians: LighthouseMedian[];
 }
 
 async function readLinks(ctx: StageContext, dir: string): Promise<Record<string, string>> {
@@ -42,9 +43,9 @@ export async function runLighthouse(ctx: StageContext, urls: string[], label: st
   await runToolOk(ctx, 'lhci', ['collect', `--config=${rc}`], run);
   await runToolOk(ctx, 'lhci', ['upload', `--config=${rc}`], run);
   const links = await readLinks(ctx, dir);
-  const failures = lighthouseFailures(await readLhrs(ctx, dir));
+  const lhrs = await readLhrs(ctx, dir);
   const assert = await runTool(ctx, 'lhci', ['assert', `--config=${rc}`], run);
-  return { passed: assert.code === 0, urls, links, failures };
+  return { passed: assert.code === 0, urls, links, failures: lighthouseFailures(lhrs), medians: lighthouseMedians(lhrs) };
 }
 
 /** One line per failing category, with the audits behind it, for error messages. */
