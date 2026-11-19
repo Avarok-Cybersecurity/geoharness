@@ -16,6 +16,10 @@ All notable changes to GeoHarness are documented here. The format follows
 
 ### Fixed
 
+- `<meta name="build">` is injected at the top of `<head>` (after a charset declaration) instead of its end. The
+  live build check reads the first 8,192 characters, so a page with a large inline `<style>` or JSON-LD failed
+  verification after deploying and was rolled back, though it served the right build. Found migrating
+  thomaspbraun.com (build meta at offset 15,466).
 - Security: child processes no longer inherit the action inputs (`INPUT_*`), so the Cloudflare API token no longer
   reaches the site's build command or the install scripts of its dependencies; wrangler still gets it, passed
   explicitly. Found migrating thomaspbraun.com, GeoHarness's first external consumer.
