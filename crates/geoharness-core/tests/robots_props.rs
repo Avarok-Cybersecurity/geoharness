@@ -57,11 +57,11 @@ proptest! {
         prop_assume!(!site.iter().any(|(t, _)| t.eq_ignore_ascii_case(&ours)));
         let config = config_with(vec![ours.clone()], vec!["/x/".into()]);
         let once = merge(Some(&existing), &config).map_err(|e| TestCaseError::fail(e.to_string()))?;
-        let site_lines: String = once
+        let site_lines = once
             .lines()
             .filter(|l| !l.starts_with("Content-Signal:"))
-            .map(|l| format!("{l}\n"))
-            .collect();
+            .collect::<Vec<_>>()
+            .join("\n");
         prop_assert!(site_lines.starts_with(existing.trim_end()), "site lines changed:\n{}", once);
         let again = merge(Some(&once), &config).map_err(|e| TestCaseError::fail(e.to_string()))?;
         prop_assert_eq!(&once, &again);
