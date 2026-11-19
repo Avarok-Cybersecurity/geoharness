@@ -6,6 +6,7 @@
 mod matcher;
 mod merge;
 mod parse;
+mod sign;
 
 pub use matcher::is_allowed;
 pub use merge::{BLOCK_BEGIN, BLOCK_END, content_signal_value, merge};

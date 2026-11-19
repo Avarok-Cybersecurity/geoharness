@@ -20,6 +20,12 @@ All notable changes to GeoHarness are documented here. The format follows
   live build check reads the first 8,192 characters, so a page with a large inline `<style>` or JSON-LD failed
   verification after deploying and was rolled back, though it served the right build. Found migrating
   thomaspbraun.com (build meta at offset 15,466).
+- Markdown twins: icon-only links keep a label (`aria-label`, then `title`, then an inner image's `alt`)
+  instead of converting to `[](url)`, and fragment-only links (`#experience`) become `<canonical>#experience`
+  in the twin and in `llms-full.txt` instead of pointing into the markdown.
+- robots.txt: the site's own groups now carry the configured `Content-Signal` too. A configured group the
+  site's file already had (its `User-agent: *` included) was absorbed without the line, so the crawlers that
+  read that group never saw the signal. A site group stating a different signal is a `robots.conflict`.
 - Security: child processes no longer inherit the action inputs (`INPUT_*`), so the Cloudflare API token no longer
   reaches the site's build command or the install scripts of its dependencies; wrangler still gets it, passed
   explicitly. Found migrating thomaspbraun.com, GeoHarness's first external consumer.

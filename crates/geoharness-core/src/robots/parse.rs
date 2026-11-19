@@ -20,6 +20,9 @@ pub struct Group {
     pub agents: Vec<String>,
     pub rules: Vec<Rule>,
     pub content_signal: Option<String>,
+    /// 0-based line of the group's last `User-agent` line in the parsed text;
+    /// `None` for groups `GeoHarness` generates.
+    pub agents_end: Option<usize>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -66,7 +69,7 @@ pub fn parse(robots: &str) -> Robots {
     let mut out = Robots::default();
     let mut current: Option<Group> = None;
     let mut last_was_agent = false;
-    for raw in robots.lines() {
+    for (index, raw) in robots.lines().enumerate() {
         let line = raw.split('#').next().unwrap_or("").trim();
         let Some((key, value)) = line.split_once(':') else {
             continue;
@@ -77,10 +80,9 @@ pub fn parse(robots: &str) -> Robots {
                 if !last_was_agent {
                     out.groups.extend(current.take());
                 }
-                current
-                    .get_or_insert_with(Group::default)
-                    .agents
-                    .push(value);
+                let group = current.get_or_insert_with(Group::default);
+                group.agents.push(value);
+                group.agents_end = Some(index);
                 last_was_agent = true;
                 continue;
             }

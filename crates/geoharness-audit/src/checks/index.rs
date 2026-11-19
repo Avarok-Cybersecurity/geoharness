@@ -62,7 +62,7 @@ pub fn twin(p: &PageCtx<'_>, main_selector: &str) -> Scored {
     if p.markdown.trim().is_empty() {
         return pass_fail(&TWIN, Some(p.route), false, "no markdown twin");
     }
-    let text = p.page.main(main_selector).text();
+    let text = p.page.main(main_selector).text_with_link_names();
     let score = overlap(&text, p.markdown);
     pass_fail(
         &TWIN,

@@ -1,6 +1,13 @@
 # The site's own rules
 User-agent: BadBot
+Content-Signal: search=yes, ai-input=yes, ai-train=no
 Disallow: /
+
+# Everyone else, as geoharness.toml states it too
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+Allow: /
+Disallow: /private/
 
 # BEGIN GeoHarness
 # Content signals: https://contentsignals.org/
@@ -21,11 +28,6 @@ User-agent: GPTBot
 User-agent: ClaudeBot
 Content-Signal: search=yes, ai-input=yes, ai-train=no
 Disallow: /
-
-User-agent: *
-Content-Signal: search=yes, ai-input=yes, ai-train=no
-Allow: /
-Disallow: /private/
 
 Sitemap: https://example.com/sitemap.xml
 # END GeoHarness
