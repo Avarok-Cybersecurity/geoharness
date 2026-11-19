@@ -54,6 +54,7 @@ describe('pre-deploy Lighthouse gate (local wrangler server)', () => {
     const devConfig = dev?.args[dev.args.indexOf('--config') + 1];
     expect(devConfig).toBe(deploy?.args[deploy.args.indexOf('--config') + 1]);
     expect(dev?.options.env).toEqual({ WRANGLER_SEND_METRICS: 'false' });
+    expect(dev?.options.cwd.startsWith(h.ctx.inputs.stateDir)).toBe(true);
     expect(h.proc.started).toBe(1);
     expect(h.proc.stopped).toBe(1);
     const collects = lhciCalls(h).filter((c) => c.args.includes('collect'));

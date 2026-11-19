@@ -65,7 +65,8 @@ export async function withLocalServer<T>(ctx: StageContext, firstPath: string, b
   ctx.io.log.info(`$ ${bin} ${args.join(' ')}`);
   // No Cloudflare credentials: the local server never needs the account.
   const running = ctx.io.proc.start('npx', ['--yes', `--package=${pkg}`, '--', bin, ...args], {
-    cwd: ctx.inputs.sitePath, env: { WRANGLER_SEND_METRICS: 'false' }, redact: [ctx.inputs.apiToken], stream: false,
+    // cwd is the temp dir: wrangler writes .wrangler/{tmp,cache} into its working directory, never into the site.
+    cwd: persistTo, env: { WRANGLER_SEND_METRICS: 'false' }, redact: [ctx.inputs.apiToken], stream: false,
   });
   try {
     const origin = `http://${LOCAL_IP}:${port}`;

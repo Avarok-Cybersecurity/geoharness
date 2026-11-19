@@ -1774,7 +1774,8 @@ async function withLocalServer(ctx, firstPath, body) {
   const { pkg, bin } = TOOLS.wrangler;
   ctx.io.log.info(`$ ${bin} ${args.join(" ")}`);
   const running = ctx.io.proc.start("npx", ["--yes", `--package=${pkg}`, "--", bin, ...args], {
-    cwd: ctx.inputs.sitePath,
+    // cwd is the temp dir: wrangler writes .wrangler/{tmp,cache} into its working directory, never into the site.
+    cwd: persistTo,
     env: { WRANGLER_SEND_METRICS: "false" },
     redact: [ctx.inputs.apiToken],
     stream: false
