@@ -63,6 +63,7 @@ export function renderSummary(state: RunState, failure: string | undefined): str
     for (const p of pages) out.push(`| ${cell(p.route)} | ${cell(p.markdownFile)} | ${p.tokens} |`);
     out.push('');
   }
+  if (state.dnsTakeover !== undefined) out.push('### DNS takeover', '', ...state.dnsTakeover.map((c) => `- ${cell(c)}`), '');
   if (state.zoneChanges !== undefined) {
     out.push('### Zone changes', '');
     out.push(...(state.zoneChanges.length === 0 ? ['None — already configured.'] : state.zoneChanges.map((c) => `- ${c}`)), '');

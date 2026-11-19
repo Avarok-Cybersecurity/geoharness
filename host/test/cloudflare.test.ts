@@ -31,7 +31,7 @@ async function zoneRun(fake: FakeCf): Promise<void> {
     io, core, inputs: makeInputs({}), cfBaseUrl: fake.baseUrl,
     state: {
       config,
-      access: { zone: ZONE, negotiation: 'rules', optimizations: ['email_obfuscation', 'early_hints', 'smart_tiered_cache', 'zstd', 'bot_fight_mode', 'ai_bots_protection'] },
+      access: { zone: ZONE, negotiation: 'rules', optimizations: ['email_obfuscation', 'early_hints', 'smart_tiered_cache', 'zstd', 'bot_fight_mode', 'ai_bots_protection'], takeover: [] },
       build: { outputDir: '/out', notFoundHandling: '404-page' },
       processed: { pages: processed.value.pages, rewriteRules: processed.value.rewriteRules, warnings: [], files: [] },
     },

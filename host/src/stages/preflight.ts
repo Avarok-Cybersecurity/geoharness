@@ -6,6 +6,7 @@ import { probe } from '../io/cloudflare/probe.js';
 import type { OptimizationId } from '../lib/optimizations.js';
 import { featurePermissions, probePath } from '../lib/permissions.js';
 import { primaryHost, type StageContext } from './context.js';
+import { checkHostDns } from './dns-check.js';
 
 export const CONFIG_FILE = 'geoharness.toml';
 
@@ -69,5 +70,9 @@ export async function preflight(ctx: StageContext): Promise<void> {
     throw new Error(`The Cloudflare API token lacks permission groups:\n${lines.join('\n')}\n` +
       'Add them to the token, or opt out of the optional feature via extra-optimizations (e.g. "all -zstd").');
   }
-  ctx.state.access = { zone, negotiation, optimizations };
+  const takeover = inputs.target === 'workers' && zone !== undefined ? await checkHostDns(ctx, zone) : [];
+  if (inputs.target === 'workers' && zone === undefined) {
+    io.log.warn('No zone access: the domains\' DNS records cannot be checked; a host that still has its own A/AAAA/CNAME records fails the deploy with Cloudflare error 100117.');
+  }
+  ctx.state.access = { zone, negotiation, optimizations, takeover };
 }

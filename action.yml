@@ -66,6 +66,14 @@ inputs:
       (wrangler rollback for workers, the Pages rollback API for pages), then fail. false: fail and leave the new
       build live. A first deploy has nothing to roll back to and just fails.
     required: false
+  takeover-dns:
+    description: >-
+      workers target only; no default. When a domain still has its own A, AAAA or CNAME records (e.g. a CNAME to a
+      Pages project), Cloudflare cannot bind it to the Worker (error 100117) and preflight fails before the build,
+      explaining the move. true: after uploading the Worker, GeoHarness deletes those records and at once attaches the
+      host as a Worker Custom Domain, host by host (zero downtime); then remove the host from the old Pages project.
+      false: never touch them; do the move by hand. Not needed when no domain has such records.
+    required: false
   rag:
     description: Coming in v1.1 (RAG index export). Not implemented yet; setting it to true fails the run.
     required: false
@@ -110,4 +118,5 @@ runs:
         INPUT_EXTRA_OPTIMIZATIONS: ${{ inputs.extra-optimizations }}
         INPUT_DEPLOY: ${{ inputs.deploy }}
         INPUT_ROLLBACK_ON_FAILURE: ${{ inputs.rollback-on-failure }}
+        INPUT_TAKEOVER_DNS: ${{ inputs.takeover-dns }}
         INPUT_RAG: ${{ inputs.rag }}

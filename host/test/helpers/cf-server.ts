@@ -8,8 +8,11 @@ import type { AddressInfo } from 'node:net';
 export interface RecordedRequest { method: string; path: string; body: unknown }
 type Json = Record<string, unknown>;
 
+export interface FakeDnsRecord { id: string; zone_id: string; type: string; name: string; content: string; proxied: boolean; ttl: number }
+
 export interface CfState {
-  zones: { id: string; name: string }[];
+  zones: { id: string; name: string; plan?: { legacy_id: string } }[];
+  dnsRecords: FakeDnsRecord[];
   rulesets: Record<string, Json[] | undefined>; // key `${zoneId}:${phase}`; undefined = no entrypoint
   settings: Record<string, string>; // key `${zoneId}:${id}`
   tiered: Record<string, string>;
@@ -21,6 +24,8 @@ export interface CfState {
   pagesProduction: Record<string, string>;
   /** Path prefixes answered with 403 / code 10000. */
   denied: string[];
+  /** Exact method + path answered with HTTP 500 / code 10013, for failure paths of writes. */
+  refuse: { method: string; path: string }[];
 }
 
 export interface FakeCf { baseUrl: string; state: CfState; requests: RecordedRequest[]; close(): Promise<void> }
@@ -37,6 +42,7 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
 
 function route(s: CfState, method: string, path: string, query: URLSearchParams, body: unknown): [number, Json] {
   if (s.denied.some((d) => path.startsWith(d))) return [403, fail(10000, 'Authentication error')];
+  if (s.refuse.some((r) => r.method === method && r.path === path)) return [500, fail(10013, 'An unknown error has occurred')];
   if (path === '/zones' && method === 'GET') {
     const zones = s.zones.filter((z) => z.name === query.get('name'));
     return [200, ok(zones, { page: 1, per_page: 5, total_pages: 1 })];
@@ -77,6 +83,15 @@ function route(s: CfState, method: string, path: string, query: URLSearchParams,
     if (method === 'PUT') s.bot[z] = { ...(s.bot[z] ?? {}), ...(body as Json) };
     return [200, ok(s.bot[z] ?? { fight_mode: true, ai_bots_protection: 'block' })];
   }
+  if (/^\/accounts\/[^/]+\/workers\/domains$/.test(path) && method === 'PUT') {
+    const d = body as { hostname: string; service: string; zone_id: string; environment: string };
+    // Cloudflare refuses a Custom Domain over a host's own A/AAAA/CNAME records (error 100117).
+    if (s.dnsRecords.some((r) => r.name === d.hostname && ['A', 'AAAA', 'CNAME'].includes(r.type))) {
+      return [409, fail(100117, `Hostname '${d.hostname}' already has externally managed DNS records (A, CNAME, etc).`)];
+    }
+    s.workerDomains = [...s.workerDomains.filter((x) => x.hostname !== d.hostname), { hostname: d.hostname, service: d.service, zone_id: d.zone_id }];
+    return [200, ok({ id: `wd-${d.hostname}`, ...d })];
+  }
   if (/^\/accounts\/[^/]+\/workers\/domains$/.test(path)) {
     const host = query.get('hostname');
     return [200, ok(s.workerDomains.filter((d) => host === null || d.hostname === host), { total_pages: 1 })];
@@ -97,12 +112,31 @@ function route(s: CfState, method: string, path: string, query: URLSearchParams,
     return [200, ok({ id: rollback[2] })];
   }
   if (/^\/accounts\/[^/]+\/(workers\/scripts|pages\/projects)$/.test(path)) return [200, ok([])];
-  if (/^\/zones\/[^/]+\/dns_records$/.test(path)) return [200, ok([], { total_pages: 1 })];
+  const dns = /^\/zones\/([^/]+)\/dns_records(?:\/([^/]+))?$/.exec(path);
+  if (dns !== null) return dnsRoute(s, method, dns[1] ?? '', dns[2], query, body);
   return [404, fail(7003, `no route for ${method} ${path}`)];
 }
 
+function dnsRoute(s: CfState, method: string, zoneId: string, id: string | undefined, query: URLSearchParams, body: unknown): [number, Json] {
+  if (method === 'GET' && id === undefined) {
+    const name = query.get('name');
+    return [200, ok(s.dnsRecords.filter((r) => r.zone_id === zoneId && (name === null || r.name === name)), { total_pages: 1 })];
+  }
+  if (method === 'DELETE' && id !== undefined) {
+    if (!s.dnsRecords.some((r) => r.id === id)) return [404, fail(81044, 'Record does not exist.')];
+    s.dnsRecords = s.dnsRecords.filter((r) => r.id !== id);
+    return [200, ok({ id })];
+  }
+  if (method === 'POST' && id === undefined) {
+    const r = { ...(body as Omit<FakeDnsRecord, 'id' | 'zone_id'>), id: `dns-${s.dnsRecords.length + 1}-${Date.now()}`, zone_id: zoneId };
+    s.dnsRecords = [...s.dnsRecords, r];
+    return [200, ok(r)];
+  }
+  return [404, fail(7003, `no route for ${method} dns_records`)];
+}
+
 export async function startFakeCf(state: Partial<CfState>): Promise<FakeCf> {
-  const s: CfState = { zones: [], rulesets: {}, settings: {}, tiered: {}, bot: {}, workerDomains: [], workerDeployments: {}, pagesProduction: {}, denied: [], ...structuredClone(state) };
+  const s: CfState = { zones: [], dnsRecords: [], rulesets: {}, settings: {}, tiered: {}, bot: {}, workerDomains: [], workerDeployments: {}, pagesProduction: {}, denied: [], refuse: [], ...structuredClone(state) };
   // Cloned: the fake mutates its state, and tests share fixtures such as CF_WITH_VERSION.
   const requests: RecordedRequest[] = [];
   const server: Server = createServer((req, res) => {

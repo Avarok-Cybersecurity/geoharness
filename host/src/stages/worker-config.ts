@@ -16,7 +16,7 @@ export interface WorkerConfig {
  * The repo's own wrangler config when it has one, else the generated assets-only Worker (or the negotiate
  * fallback Worker in front of the assets when preflight found no zone access).
  */
-export async function workerConfig(ctx: StageContext, stage: string): Promise<WorkerConfig> {
+export async function workerConfig(ctx: StageContext, stage: string, o: { routes: boolean }): Promise<WorkerConfig> {
   const built = need(ctx.state, 'build', stage);
   const { sitePath, stateDir, projectName, domains } = ctx.inputs;
   if (built.repoWranglerConfig !== undefined) {
@@ -29,8 +29,9 @@ export async function workerConfig(ctx: StageContext, stage: string): Promise<Wo
     main = join(stateDir, 'negotiate-worker.mjs');
     await ctx.io.fs.writeText(main, negotiateEntry(ctx.negotiateModule));
   }
-  const config = generateWranglerConfig({ name: projectName, outputDir: built.outputDir, domains, notFoundHandling: built.notFoundHandling, main });
-  const file = join(stateDir, 'wrangler.json');
+  // Without routes: the upload that precedes a DNS takeover, which binds the domains itself.
+  const config = generateWranglerConfig({ name: projectName, outputDir: built.outputDir, domains: o.routes ? domains : [], notFoundHandling: built.notFoundHandling, main });
+  const file = join(stateDir, o.routes ? 'wrangler.json' : 'wrangler-upload.json');
   await ctx.io.fs.writeText(file, `${JSON.stringify(config, null, 2)}\n`);
   return { file, workerName: projectName, repoOwned: false };
 }

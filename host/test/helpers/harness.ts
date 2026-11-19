@@ -1,5 +1,5 @@
 // The whole action run against the static fixture, with the outside world faked only at the io/ seams (world.ts).
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach } from 'vitest';
 import type { Inputs } from '../../src/inputs.js';
@@ -27,10 +27,11 @@ export function currentCf(): FakeCf {
 afterEach(async () => { await cf?.close(); cf = undefined; });
 
 /**
- * What `wrangler deploy` does to the account, so later reads see it: a new deployment of a new version becomes
- * the Worker's newest, and every domain in the config becomes a Custom Domain of the Worker.
+ * What `wrangler deploy` does to the account, so later reads see it: a new version becomes the Worker's newest
+ * deployment, then each custom-domain route of the config is bound to the Worker — which, like Cloudflare, fails
+ * with error 100117 while the host still has its own A/AAAA/CNAME records (the version stays uploaded).
  */
-function simulateWorkersDeploy(fake: FakeCf, inputs: Inputs): void {
+async function simulateWorkersDeploy(fake: FakeCf, inputs: Inputs, configFile: string | undefined): Promise<ProcResult | undefined> {
   const name = inputs.projectName;
   const previous = fake.state.workerDeployments[name] ?? [];
   const n = previous.length + 1;
@@ -38,11 +39,14 @@ function simulateWorkersDeploy(fake: FakeCf, inputs: Inputs): void {
     { id: `d-run-${n}`, created_on: `2026-11-19T00:00:${String(n).padStart(2, '0')}Z`, versions: [{ version_id: `v-run-${n}`, percentage: 100 }] },
     ...previous,
   ];
-  for (const hostname of inputs.domains) {
-    if (!fake.state.workerDomains.some((d) => d.hostname === hostname && d.service === name)) {
-      fake.state.workerDomains = [...fake.state.workerDomains.filter((d) => d.hostname !== hostname), { hostname, service: name, zone_id: ZONE.id }];
+  const config = configFile === undefined ? {} : JSON.parse(await readFile(configFile, 'utf8')) as { routes?: { pattern: string }[] };
+  for (const { pattern: hostname } of config.routes ?? []) {
+    if (fake.state.dnsRecords.some((r) => r.name === hostname && ['A', 'AAAA', 'CNAME'].includes(r.type))) {
+      return { code: 1, stdout: '', stderr: `✘ [ERROR] A request to the Cloudflare API failed.\n\n  Hostname '${hostname}' already has externally managed DNS records (A, CNAME, etc). [code: 100117]\n` };
     }
+    fake.state.workerDomains = [...fake.state.workerDomains.filter((d) => d.hostname !== hostname), { hostname, service: name, zone_id: ZONE.id }];
   }
+  return undefined;
 }
 
 export interface Harness { ctx: StageContext; w: SiteWorld; proc: RecordingProc; summary: string; output: string; log: string[] }
@@ -63,7 +67,10 @@ export async function harness(o: { cfState?: Parameters<typeof startFakeCf>[0]; 
   const proc = recordingProc(async (c) => {
     if (c.args.includes('deploy')) {
       w.outputDir = join(site, 'public');
-      if (inputs.target === 'workers' && !c.args.includes('--dry-run')) simulateWorkersDeploy(fake, inputs);
+      if (inputs.target === 'workers') {
+        const failed = await simulateWorkersDeploy(fake, inputs, c.args[c.args.indexOf('--config') + 1]);
+        if (failed !== undefined) return failed;
+      }
     }
     return o.onProc === undefined ? undefined : o.onProc(c);
   }, (c) => {

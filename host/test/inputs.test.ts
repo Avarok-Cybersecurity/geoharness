@@ -57,6 +57,14 @@ describe('inputs', () => {
     expect([i.summaryFile, i.outputFile]).toEqual(['/tmp/gh/summary.md', '/tmp/gh/output.txt']);
   });
 
+  it('takeover-dns is optional, strictly boolean, and only for the workers target', () => {
+    expect(read({}).takeoverDns).toBeUndefined();
+    expect(read({ INPUT_TAKEOVER_DNS: 'true' }).takeoverDns).toBe(true);
+    expect(read({ INPUT_TAKEOVER_DNS: 'false' }).takeoverDns).toBe(false);
+    expect(() => read({ INPUT_TAKEOVER_DNS: 'yes' })).toThrow(/takeover-dns must be "true" or "false"/);
+    expect(() => read({ INPUT_TARGET: 'pages', INPUT_TAKEOVER_DNS: 'false' })).toThrow(/takeover-dns applies only to target workers/);
+  });
+
   it('rejects unimplemented rag instead of ignoring it', () => {
     expect(() => read({ INPUT_RAG: 'true' })).toThrow(/rag is coming in v1.1/);
   });

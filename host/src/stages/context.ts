@@ -29,6 +29,8 @@ export interface RunState {
     /** rules: Accept negotiation via zone Transform Rules; negotiate-worker: fallback Worker (no zone access). */
     negotiation: 'rules' | 'negotiate-worker';
     optimizations: OptimizationId[];
+    /** Domains whose own DNS records deploy replaces with Worker Custom Domains (takeover-dns: true). */
+    takeover: string[];
   };
   adapterId?: AdapterId;
   build?: BuildResult;
@@ -48,6 +50,8 @@ export interface RunState {
   previousSitemap?: string;
   deploy?: { url: string; target: 'workers' | 'pages' };
   zoneChanges?: string[];
+  /** What the DNS takeover did, host by host, plus what is left to the owner. */
+  dnsTakeover?: string[];
   liveAudit?: AuditReport;
   indexnow?: { submitted: string[]; status: number | undefined };
 }
