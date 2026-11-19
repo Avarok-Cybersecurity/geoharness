@@ -91,6 +91,19 @@ describe('geoharness run', () => {
     expect(cf?.requests.some((r) => r.path.includes('rulesets'))).toBe(false);
   });
 
+  it('deploy: false builds, processes and audits, then makes no Cloudflare call and runs no wrangler', async () => {
+    const h = await harness({ inputs: { deploy: false, apiToken: '', accountId: '' } });
+    await runAll(h.ctx);
+    expect(cf?.requests).toEqual([]);
+    expect(wranglerCalls(h)).toEqual([]);
+    expect(h.w.indexnow).toEqual([]);
+    expect(await readFile(join(h.ctx.inputs.sitePath, 'public', 'about', 'index.md'), 'utf8')).toContain('title: /about/');
+    const summary = await readFile(h.summary, 'utf8');
+    expect(summary).toContain('Dry run (`deploy: false`)');
+    expect(summary).toContain('GEO score (build): 90/100');
+    expect(await readFile(h.output, 'utf8')).toBe('geo-score=90\nurl=\nmarkdown-count=2\n');
+  });
+
   it('preflight names every missing permission group', async () => {
     const h = await harness({ cfState: { zones: [ZONE], denied: ['/zones/zone1/bot_management', '/zones/zone1/settings/http3'] } });
     const err = await runAll(h.ctx).catch((e: unknown) => e);

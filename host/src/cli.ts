@@ -1,6 +1,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { auditUrl, formatReport } from './cli-audit.js';
+import { parseAuditArgs } from './lib/audit-args.js';
 import { CoreFailure } from './core/core.js';
 import { loadWasmCore } from './core/wasm.js';
 import { InputError, readInputs } from './inputs.js';
@@ -15,7 +16,8 @@ const CLOUDFLARE_TIMEOUT_MS = 30_000;
 const USAGE = `usage:
   geoharness run                 all stages in order (${STAGE_ORDER.join(', ')})
   geoharness <stage>             one stage; state carries over in $GEOHARNESS_STATE_DIR
-  geoharness audit <url> [--config geoharness.toml]   live-only audit of any URL`;
+  geoharness audit <url> [--config geoharness.toml --build-id <sha>] [--build-id <sha>]
+                                 live audit of any URL (config-less unless --config)`;
 
 /** Layout of the shipped action: dist/cli.mjs, dist/core/geoharness_wasm.js, edge/negotiate.mjs. */
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -31,13 +33,18 @@ async function main(argv: string[]): Promise<number> {
   }
   const core = loadWasmCore(CORE_MODULE);
   if (command === 'audit') {
-    const [target, flag, configPath] = rest;
-    if (target === undefined || (flag !== undefined && (flag !== '--config' || configPath === undefined))) {
+    const parsed = parseAuditArgs(rest);
+    if (parsed === undefined) {
       io.log.error(USAGE);
       return 2;
     }
-    const toml = configPath === undefined ? undefined : await io.fs.readText(configPath);
-    io.log.info(formatReport(target, await auditUrl(io, core, target, toml)));
+    const configToml = parsed.config === undefined ? undefined : await io.fs.readText(parsed.config);
+    const report = await auditUrl(io, core, {
+      target: parsed.target,
+      ...(configToml === undefined ? {} : { configToml }),
+      ...(parsed.buildId === undefined ? {} : { buildId: parsed.buildId }),
+    });
+    io.log.info(formatReport(parsed.target, report));
     return 0;
   }
   if (command !== 'run' && !isStageName(command)) {

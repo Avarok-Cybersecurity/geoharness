@@ -7,7 +7,7 @@ export async function auditStage(ctx: StageContext): Promise<void> {
   const config = need(ctx.state, 'config', 'audit');
   const { outputDir } = need(ctx.state, 'build', 'audit');
   const processed = need(ctx.state, 'processed', 'audit');
-  const input = await staticAuditInput(ctx.io.fs, outputDir, config, processed.pages);
+  const input = await staticAuditInput(ctx.io.fs, { outputDir, config, buildId: ctx.inputs.buildId, pages: processed.pages });
   const report = unwrap('audit', ctx.core.audit(input));
   ctx.state.staticAudit = report;
   ctx.io.log.info(`GEO score (static) ${report.score}`);

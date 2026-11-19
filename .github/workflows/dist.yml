@@ -1,0 +1,49 @@
+name: dist
+
+# dist/ ships with the action (uses: Avarok-Cybersecurity/geoharness@v1 runs dist/cli.mjs, which loads
+# dist/core/geoharness_wasm.js). This job rebuilds both from source and fails if the committed copy differs.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dist-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  dist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust toolchain (pinned by rust-toolchain.toml)
+        run: |
+          rustup toolchain install
+          rustc --version
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Rebuild dist/core (wasm-bindgen-cli pinned to Cargo.lock)
+        run: scripts/build-wasm.sh
+      - name: Rebuild dist/cli.mjs
+        run: npm run bundle
+      - name: dist/ matches the committed copy
+        run: |
+          git status --porcelain -- dist
+          if [ -n "$(git status --porcelain -- dist)" ]; then
+            git diff --stat -- dist
+            echo "::error::dist/ is stale: run scripts/build-wasm.sh and npm run bundle, then commit dist/"
+            exit 1
+          fi
+      - name: The shipped CLI loads the shipped core
+        run: node scripts/smoke-wasm.mjs

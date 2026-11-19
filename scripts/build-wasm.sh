@@ -32,6 +32,12 @@ if [[ "$("$bindgen" --version)" != "wasm-bindgen $version" ]]; then
   exit 1
 fi
 
+# dist/core is committed and CI rebuilds it byte for byte, so no machine-specific path may
+# reach the binary (panic locations embed source paths): remap every root to a fixed name.
+# The toolchain is pinned by rust-toolchain.toml for the same reason.
+cargo_home="${CARGO_HOME:-$HOME/.cargo}"
+sysroot="$(rustc --print sysroot)"
+export RUSTFLAGS="--remap-path-prefix=$cargo_home=/cargo --remap-path-prefix=$sysroot=/rustc --remap-path-prefix=$repo=/geoharness"
 cargo build --manifest-path "$repo/Cargo.toml" -p geoharness-wasm --target wasm32-unknown-unknown --release
 rm -rf "$out_dir"
 "$bindgen" --target nodejs --out-dir "$out_dir" --out-name geoharness_wasm \

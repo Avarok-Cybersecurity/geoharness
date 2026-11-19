@@ -1,7 +1,7 @@
-// FAKE CORE — justified: the real core is the wasm build of crates/* from the parallel core lane and does
-// not exist in this worktree. This stand-in obeys docs/architecture/contract.md (twin paths, tagged rewrite
-// rules, build meta, IndexNow key file) with deliberately trivial content, so stage tests exercise the
-// host's orchestration and I/O. At merge, add a contract test that runs the same stage tests on the real wasm.
+// FAKE CORE — justified: the orchestration tests need to dictate the score and a blocking failure to
+// prove the gates stop the run, which the real core decides from content. It obeys
+// docs/architecture/contract.md (twin paths, tagged rewrite rules, build meta, IndexNow key file) with
+// trivial content. The real wasm runs in core-contract.test.ts and real-core-run.test.ts.
 import type { Core } from '../../src/core/core.js';
 import type { AuditReport, LiveObservation, OutFile, SiteConfig } from '../../src/core/types-index.js';
 
@@ -77,8 +77,10 @@ export function fakeCore(opts: FakeCoreOptions): Core & { calls: string[] } {
       calls.push(input.live === undefined ? 'audit' : 'audit-live');
       return { ok: true, value: report(input.live) };
     },
-    liveCheckPlan(config, routes) {
+    liveCheckPlan(input) {
       calls.push('liveCheckPlan');
+      const { config, routes } = input;
+      if (config === undefined) return { ok: false, errors: [{ code: 'input.invalid', message: 'fake core needs config' }] };
       return {
         ok: true,
         value: [
@@ -86,6 +88,10 @@ export function fakeCore(opts: FakeCoreOptions): Core & { calls: string[] } {
           { url: `${config.site.origin}/`, userAgent: 'GPTBot', accept: 'text/markdown, text/html, */*', expect: { status: 200 } },
         ],
       };
+    },
+    auditLive(input) {
+      calls.push('auditLive');
+      return { ok: true, value: report(input.live) };
     },
     ragInputs() {
       return { ok: false, errors: [{ code: 'unimplemented', message: 'not used by the host yet' }] };

@@ -1,2 +1,2 @@
-// Single switch point: at merge, re-export from './types.js' (ts-rs generated) instead.
-export type * from './types.contract.js';
+// The ts-rs generated types are the single source of truth for the core boundary.
+export type * from './types.js';

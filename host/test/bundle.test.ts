@@ -10,15 +10,18 @@ import { tempDir } from './helpers/world.js';
 const run = promisify(execFile);
 const DIST = join(import.meta.dirname, '..', '..', 'dist', 'cli.mjs');
 
-// A CommonJS stand-in with the shape wasm-pack --target nodejs emits (justified: the real wasm comes from the
-// core lane). It proves the committed bundle loads a core from dist/core/ and runs `audit <url>` end to end.
+// A CommonJS stand-in with the shape wasm-bindgen --target nodejs emits (justified: it lets the test assert
+// exactly what the bundle forwards; the shipped wasm itself is exercised in real-core-run.test.ts). It
+// proves the committed bundle loads a core from dist/core/ and runs `audit <url>` end to end.
 const FAKE_WASM = `
 exports.parseConfig = () => ({ ok: false, errors: [{ code: 'x', message: 'unused' }] });
 exports.processSite = exports.parseConfig;
 exports.ragInputs = exports.parseConfig;
-exports.liveCheckPlan = (config, routes) => ({ ok: true, value: routes.map((r) => ({ url: config.site.origin + r, userAgent: 'GPTBot', accept: 'text/markdown', expect: { status: 200 } })) });
-exports.audit = (input) => ({ ok: true, value: { score: input.live[0].status === 200 ? 77 : 0, categories: [{ id: 'a', title: 'Access', weight: 1, score: 77 }],
-  findings: [{ checkId: 'md', title: 'Markdown twin', severity: 'advisory', passed: input.pages[0].markdown.startsWith('# Hi'), evidence: input.robots.trim(), citations: ['llmstxt-spec'] }] } });
+exports.audit = exports.parseConfig;
+exports.liveCheckPlan = (input) => ({ ok: true, value: input.routes.map((r) => ({ url: input.origin + r, userAgent: 'GPTBot', accept: 'text/markdown', expect: { status: 200 } }))
+  .concat([{ url: input.origin + '/robots.txt', userAgent: 'GPTBot', accept: 'text/plain', expect: { status: 200 } }]) });
+exports.auditLive = (input) => ({ ok: true, value: { score: input.live[0].status === 200 ? 77 : 0, categories: [{ id: 'a', title: 'Access', weight: 1, score: 77 }],
+  findings: [{ checkId: 'md', title: 'Markdown twin', severity: 'advisory', passed: input.live[0].bodyPrefix.startsWith('# Hi'), evidence: input.live[1].bodyPrefix.trim(), citations: ['llmstxt-spec'] }] } });
 `;
 
 describe('bundled CLI', () => {

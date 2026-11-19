@@ -18,11 +18,18 @@ export const STAGES = {
 export type StageName = keyof typeof STAGES;
 export const STAGE_ORDER = Object.keys(STAGES) as StageName[];
 
+/** Stages that call the Cloudflare API or the deployed site; `deploy: false` skips them. */
+export const DEPLOY_STAGES: ReadonlySet<StageName> = new Set(['deploy', 'zone', 'verify', 'indexnow']);
+
 export function isStageName(s: string): s is StageName {
   return Object.hasOwn(STAGES, s);
 }
 
 export async function runStage(ctx: StageContext, name: StageName): Promise<void> {
+  if (!ctx.inputs.deploy && DEPLOY_STAGES.has(name)) {
+    ctx.io.log.info(`geoharness ${name}: skipped (deploy: false)`);
+    return;
+  }
   try {
     await ctx.io.log.group(`geoharness ${name}`, () => STAGES[name](ctx));
   } finally {

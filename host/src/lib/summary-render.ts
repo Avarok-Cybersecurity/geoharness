@@ -20,6 +20,7 @@ function auditSection(title: string, r: AuditReport): string[] {
 export function renderSummary(state: RunState, failure: string | undefined): string {
   const out = ['## GeoHarness', ''];
   if (failure !== undefined) out.push(`**Failed:** ${cell(failure)}`, '');
+  if (state.dryRun === true) out.push('Dry run (`deploy: false`): nothing was deployed and the zone was not touched.', '');
   if (state.deploy !== undefined) out.push(`Deployed to ${state.deploy.url} (${state.deploy.target})`, '');
   if (state.liveAudit !== undefined) out.push(...auditSection('GEO score (live)', state.liveAudit));
   if (state.staticAudit !== undefined) out.push(...auditSection('GEO score (build)', state.staticAudit));

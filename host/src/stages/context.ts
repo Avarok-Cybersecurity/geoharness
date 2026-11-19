@@ -11,6 +11,8 @@ import type { OptimizationId } from '../lib/optimizations.js';
 /** Everything a stage produces for later stages; persisted as JSON between `geoharness <stage>` calls. */
 export interface RunState {
   config?: SiteConfig;
+  /** Set by preflight when `deploy: false`. */
+  dryRun?: boolean;
   access?: {
     zone: Zone | undefined;
     /** rules: Accept negotiation via zone Transform Rules; negotiate-worker: fallback Worker (no zone access). */

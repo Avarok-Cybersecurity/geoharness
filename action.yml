@@ -10,11 +10,11 @@ branding:
 # into the script, so no input can inject shell.
 inputs:
   cloudflare-api-token:
-    description: Cloudflare API token. Permission groups per feature are listed in cloudflare-permissions.json.
-    required: true
+    description: Cloudflare API token. Permission groups per feature are listed in cloudflare-permissions.json. Required when deploy is true.
+    required: false
   cloudflare-account-id:
-    description: Cloudflare account ID (32 hex characters).
-    required: true
+    description: Cloudflare account ID (32 hex characters). Required when deploy is true.
+    required: false
   site-path:
     description: Directory of the site inside the repository; it must contain geoharness.toml.
     required: true
@@ -55,6 +55,10 @@ inputs:
       Example: "all -rocket_loader".
     required: false
     default: all
+  deploy:
+    description: "true deploys, configures the zone, verifies live and pings IndexNow. false is a dry run for pull requests: build, process, GEO audit and Lighthouse only, with no Cloudflare API call."
+    required: false
+    default: "true"
   rag:
     description: Coming in v1.1 (RAG index export). Not implemented yet; setting it to true fails the run.
     required: false
@@ -97,4 +101,5 @@ runs:
         INPUT_LIGHTHOUSE_MAX_URLS: ${{ inputs.lighthouse-max-urls }}
         INPUT_GEO_MIN_SCORE: ${{ inputs.geo-min-score }}
         INPUT_EXTRA_OPTIMIZATIONS: ${{ inputs.extra-optimizations }}
+        INPUT_DEPLOY: ${{ inputs.deploy }}
         INPUT_RAG: ${{ inputs.rag }}

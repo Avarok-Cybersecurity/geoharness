@@ -9,7 +9,10 @@ export async function writeOutputFile(fs: Fs, outputDir: string, file: string, c
 }
 
 /** The processed site, read back from disk, as the core's audit expects it. */
-export async function staticAuditInput(fs: Fs, outputDir: string, config: SiteConfig, pages: PageSummary[]): Promise<AuditInput> {
+export interface StaticAuditSource { outputDir: string; config: SiteConfig; buildId: string; pages: PageSummary[] }
+
+export async function staticAuditInput(fs: Fs, src: StaticAuditSource): Promise<AuditInput> {
+  const { outputDir, config, buildId, pages } = src;
   const read = (f: string): Promise<string | undefined> => fs.readTextIfExists(join(outputDir, f));
   const robots = await read('robots.txt');
   const sitemap = await read('sitemap.xml');
@@ -19,7 +22,7 @@ export async function staticAuditInput(fs: Fs, outputDir: string, config: SiteCo
     const htmlFile = p.markdownFile.replace(/\.md$/, '.html');
     auditPages.push({ route: p.route, html: await fs.readText(join(outputDir, htmlFile)), markdown: await fs.readText(join(outputDir, p.markdownFile)) });
   }
-  const input: AuditInput = { config, pages: auditPages, robots, headers: (await read('_headers')) ?? '', sitemap };
+  const input: AuditInput = { config, buildId, pages: auditPages, robots, headers: (await read('_headers')) ?? '', sitemap };
   const llms = await read('llms.txt');
   if (llms !== undefined) input.llms = llms;
   return input;

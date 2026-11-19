@@ -30,6 +30,11 @@ export async function preflight(ctx: StageContext): Promise<void> {
   if (!inputs.domains.includes(host)) throw new Error(`site.origin host ${host} is not listed in the domains input`);
   const missingEnv = config.env.filter((name) => io.env.get(name) === undefined);
   if (missingEnv.length > 0) throw new Error(`geoharness.toml env lists names that are not set: ${missingEnv.join(', ')}`);
+  if (!inputs.deploy) {
+    ctx.state.dryRun = true;
+    io.log.info('deploy: false — dry run: no Cloudflare API call, no deploy, no zone change');
+    return;
+  }
 
   const zone = await findZone(ctx, host);
   const values: Record<string, string> = { account_id: inputs.accountId, zone_name: zone?.name ?? host };

@@ -3,12 +3,15 @@ import type { Core } from './core.js';
 import type { Result } from './types-index.js';
 
 /**
- * Loads the wasm-bindgen (`--target nodejs`) build of geoharness-wasm.
- * The core lane ships it at dist/core/geoharness_wasm.js next to dist/cli.mjs.
- * Each export takes plain JSON-compatible objects and returns a Result object.
+ * Typed adapter over the wasm-bindgen (`--target nodejs`) build of geoharness-wasm, shipped at
+ * dist/core/geoharness_wasm.js next to dist/cli.mjs. Its generated .d.ts types every export as
+ * `(input: any) => any`; this is the one place that untyped surface is crossed. Each export is
+ * checked to exist, each return value is checked to be a Result envelope, and the payload type
+ * comes from the ts-rs generated types (host/src/core/types.ts), whose Rust source defines it.
  */
-const EXPORTS = ['parseConfig', 'processSite', 'audit', 'liveCheckPlan', 'ragInputs'] as const;
-type ExportName = (typeof EXPORTS)[number];
+export const CORE_EXPORTS = ['parseConfig', 'processSite', 'audit', 'auditLive', 'liveCheckPlan', 'ragInputs'] as const;
+type ExportName = (typeof CORE_EXPORTS)[number];
+type WasmModule = Record<ExportName, (input: unknown) => unknown>;
 
 function isResult(value: unknown): value is Result<unknown> {
   if (typeof value !== 'object' || value === null || !('ok' in value)) return false;
@@ -17,12 +20,26 @@ function isResult(value: unknown): value is Result<unknown> {
   return ok === false && 'errors' in value && Array.isArray(value.errors);
 }
 
-function call(mod: Record<string, unknown>, name: ExportName, args: unknown[]): Result<unknown> {
+function bind<K extends ExportName>(mod: WasmModule, name: K): Core[K] {
   const fn = mod[name];
-  if (typeof fn !== 'function') throw new Error(`geoharness-wasm does not export ${name}()`);
-  const raw: unknown = Reflect.apply(fn, undefined, args);
-  if (!isResult(raw)) throw new Error(`geoharness-wasm ${name}() returned a value that is not a Result`);
-  return raw;
+  const typed = (input: unknown): Result<unknown> => {
+    const raw = fn(input);
+    if (!isResult(raw)) throw new Error(`geoharness-wasm ${name}() returned a value that is not a Result`);
+    return raw;
+  };
+  // The Result payload's shape is fixed by the Rust types the ts-rs file is generated from;
+  // the contract test (host/test/core-contract.test.ts) runs every export of the real wasm.
+  return typed as Core[K];
+}
+
+function asWasmModule(loaded: unknown, modulePath: string): WasmModule {
+  if (typeof loaded !== 'object' || loaded === null) throw new Error(`cannot load core from ${modulePath}`);
+  for (const name of CORE_EXPORTS) {
+    if (typeof (loaded as Record<string, unknown>)[name] !== 'function') {
+      throw new Error(`core at ${modulePath} lacks export ${name}()`);
+    }
+  }
+  return loaded as WasmModule;
 }
 
 export function loadWasmCore(modulePath: string): Core {
@@ -31,19 +48,15 @@ export function loadWasmCore(modulePath: string): Core {
   try {
     loaded = require(modulePath);
   } catch (e) {
-    throw new Error(`cannot load the GeoHarness core (geoharness-wasm, wasm-pack --target nodejs) from ${modulePath}`, { cause: e });
+    throw new Error(`cannot load the GeoHarness core (geoharness-wasm, wasm-bindgen --target nodejs) from ${modulePath}`, { cause: e });
   }
-  if (typeof loaded !== 'object' || loaded === null) throw new Error(`cannot load core from ${modulePath}`);
-  const mod = loaded as Record<string, unknown>;
-  for (const name of EXPORTS) {
-    if (typeof mod[name] !== 'function') throw new Error(`core at ${modulePath} lacks export ${name}()`);
-  }
-  // The casts below are the one typed boundary to untyped wasm; shapes are fixed by the contract.
+  const mod = asWasmModule(loaded, modulePath);
   return {
-    parseConfig: (toml) => call(mod, 'parseConfig', [toml]) as ReturnType<Core['parseConfig']>,
-    processSite: (input) => call(mod, 'processSite', [input]) as ReturnType<Core['processSite']>,
-    audit: (input) => call(mod, 'audit', [input]) as ReturnType<Core['audit']>,
-    liveCheckPlan: (config, routes) => call(mod, 'liveCheckPlan', [config, routes]) as ReturnType<Core['liveCheckPlan']>,
-    ragInputs: (input) => call(mod, 'ragInputs', [input]) as ReturnType<Core['ragInputs']>,
+    parseConfig: bind(mod, 'parseConfig'),
+    processSite: bind(mod, 'processSite'),
+    audit: bind(mod, 'audit'),
+    auditLive: bind(mod, 'auditLive'),
+    liveCheckPlan: bind(mod, 'liveCheckPlan'),
+    ragInputs: bind(mod, 'ragInputs'),
   };
 }

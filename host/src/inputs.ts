@@ -22,6 +22,8 @@ export interface Inputs {
   lighthouseMaxUrls: number | undefined;
   geoMinScore: number;
   optimizations: Set<OptimizationId>;
+  /** false: build, process, audit and Lighthouse only — no Cloudflare API call, no deploy, no zone change. */
+  deploy: boolean;
   buildId: string;
   stateDir: string;
 }
@@ -66,8 +68,10 @@ export function readInputs(env: Env): Inputs {
     return n;
   };
 
-  const apiToken = required('cloudflare-api-token');
-  const accountId = required('cloudflare-account-id');
+  const deploy = bool('deploy');
+  // A dry run (pull requests, forks without secrets) never talks to Cloudflare, so needs no credentials.
+  const apiToken = deploy ? required('cloudflare-api-token') : '';
+  const accountId = deploy ? required('cloudflare-account-id') : '';
   if (accountId !== '' && !ACCOUNT.test(accountId)) problems.push('cloudflare-account-id must be 32 hex characters');
 
   const workspace = env.get('GITHUB_WORKSPACE') ?? '';
@@ -115,6 +119,6 @@ export function readInputs(env: Env): Inputs {
     target, projectName, domains, lighthouse, lighthouseMaxUrls,
     geoMinScore: geoMinScore ?? 0,
     optimizations: opt.ok ? opt.value : new Set(),
-    buildId, stateDir,
+    deploy, buildId, stateDir,
   };
 }

@@ -25,20 +25,6 @@ function unwrap(operation, result) {
   throw new CoreFailure(operation, result.errors);
 }
 
-// host/src/lib/probe-config.ts
-function probeConfig(url) {
-  return {
-    site: { origin: url.origin, name: url.host, language: "und" },
-    identity: { kind: "organization", name: url.host, url: url.origin, sameAs: [] },
-    contentSignal: { search: false, aiInput: false, aiTrain: false },
-    bots: [],
-    content: { mainSelector: "main", exclude: [] },
-    llms: { summary: "", sections: [] },
-    env: [],
-    headers: { immutable: [] }
-  };
-}
-
 // host/src/lib/gate.ts
 function gateFailures(report, minScore) {
   const failures = report.findings.filter((f) => f.severity === "blocking" && !f.passed).map((f) => `blocking ${f.checkId}${f.route === void 0 ? "" : ` (${f.route})`}: ${f.title} \u2014 ${f.evidence}`);
@@ -101,20 +87,33 @@ async function get(io, url, accept) {
   const r = await io.http.request({ method: "GET", url, headers: { accept }, timeoutMs: LIVE_TIMEOUT_MS, redirect: "follow" });
   return { status: r.status, body: r.body };
 }
-async function auditUrl(io, core, target, configToml) {
-  const url = new URL(target);
-  const config = configToml === void 0 ? probeConfig(url) : unwrap("parseConfig", core.parseConfig(configToml));
+async function observeAll(io, plan) {
+  const live = [];
+  for (const req of plan) live.push(await observe(io, req));
+  return live;
+}
+async function auditUrl(io, core, o) {
+  const url = new URL(o.target);
+  const routes = [url.pathname];
+  const build2 = o.buildId === void 0 ? {} : { buildId: o.buildId };
+  if (o.configToml === void 0) {
+    const plan = unwrap("liveCheckPlan", core.liveCheckPlan({ origin: url.origin, routes, ...build2 }));
+    const live2 = await observeAll(io, plan);
+    return unwrap("auditLive", core.auditLive({ origin: url.origin, routes, ...build2, live: live2 }));
+  }
+  if (o.buildId === void 0) throw new Error("audit with --config also needs --build-id <deployed commit SHA>");
+  const config = unwrap("parseConfig", core.parseConfig(o.configToml));
+  const planInput = { config, routes, buildId: o.buildId };
+  const live = await observeAll(io, unwrap("liveCheckPlan", core.liveCheckPlan(planInput)));
   const html = await get(io, url.href, "text/html");
   if (html.status !== 200) throw new Error(`${url.href} answered HTTP ${html.status}`);
   const md = await get(io, url.href, "text/markdown");
   const robots = await get(io, `${url.origin}/robots.txt`, "text/plain");
   const llms = await get(io, `${url.origin}/llms.txt`, "text/plain");
   const sitemap = await get(io, `${url.origin}/sitemap.xml`, "application/xml");
-  const plan = unwrap("liveCheckPlan", core.liveCheckPlan(config, [url.pathname]));
-  const live = [];
-  for (const req of plan) live.push(await observe(io, req));
-  const report = unwrap("audit", core.audit({
+  return unwrap("audit", core.audit({
     config,
+    buildId: o.buildId,
     pages: [{ route: url.pathname, html: html.body, markdown: md.status === 200 ? md.body : "" }],
     robots: robots.status === 200 ? robots.body : "",
     headers: "",
@@ -122,7 +121,6 @@ async function auditUrl(io, core, target, configToml) {
     sitemap: sitemap.status === 200 ? sitemap.body : "",
     live
   }));
-  return report;
 }
 function formatReport(target, r) {
   const lines = [`GEO audit of ${target}: ${r.score}/100`, ""];
@@ -136,21 +134,48 @@ function formatReport(target, r) {
 `;
 }
 
+// host/src/lib/audit-args.ts
+function parseAuditArgs(args) {
+  const [target, ...flags] = args;
+  if (target === void 0 || target.startsWith("--")) return void 0;
+  const out = { target };
+  for (let i = 0; i < flags.length; i += 2) {
+    const flag = flags[i];
+    const value = flags[i + 1];
+    if (value === void 0 || value.startsWith("--")) return void 0;
+    if (flag === "--config" && out.config === void 0) out.config = value;
+    else if (flag === "--build-id" && out.buildId === void 0) out.buildId = value;
+    else return void 0;
+  }
+  return out;
+}
+
 // host/src/core/wasm.ts
 import { createRequire } from "node:module";
-var EXPORTS = ["parseConfig", "processSite", "audit", "liveCheckPlan", "ragInputs"];
+var CORE_EXPORTS = ["parseConfig", "processSite", "audit", "auditLive", "liveCheckPlan", "ragInputs"];
 function isResult(value) {
   if (typeof value !== "object" || value === null || !("ok" in value)) return false;
   const ok = value.ok;
   if (ok === true) return "value" in value;
   return ok === false && "errors" in value && Array.isArray(value.errors);
 }
-function call(mod, name, args) {
+function bind(mod, name) {
   const fn = mod[name];
-  if (typeof fn !== "function") throw new Error(`geoharness-wasm does not export ${name}()`);
-  const raw = Reflect.apply(fn, void 0, args);
-  if (!isResult(raw)) throw new Error(`geoharness-wasm ${name}() returned a value that is not a Result`);
-  return raw;
+  const typed = (input) => {
+    const raw = fn(input);
+    if (!isResult(raw)) throw new Error(`geoharness-wasm ${name}() returned a value that is not a Result`);
+    return raw;
+  };
+  return typed;
+}
+function asWasmModule(loaded, modulePath) {
+  if (typeof loaded !== "object" || loaded === null) throw new Error(`cannot load core from ${modulePath}`);
+  for (const name of CORE_EXPORTS) {
+    if (typeof loaded[name] !== "function") {
+      throw new Error(`core at ${modulePath} lacks export ${name}()`);
+    }
+  }
+  return loaded;
 }
 function loadWasmCore(modulePath) {
   const require2 = createRequire(import.meta.url);
@@ -158,19 +183,16 @@ function loadWasmCore(modulePath) {
   try {
     loaded = require2(modulePath);
   } catch (e) {
-    throw new Error(`cannot load the GeoHarness core (geoharness-wasm, wasm-pack --target nodejs) from ${modulePath}`, { cause: e });
+    throw new Error(`cannot load the GeoHarness core (geoharness-wasm, wasm-bindgen --target nodejs) from ${modulePath}`, { cause: e });
   }
-  if (typeof loaded !== "object" || loaded === null) throw new Error(`cannot load core from ${modulePath}`);
-  const mod = loaded;
-  for (const name of EXPORTS) {
-    if (typeof mod[name] !== "function") throw new Error(`core at ${modulePath} lacks export ${name}()`);
-  }
+  const mod = asWasmModule(loaded, modulePath);
   return {
-    parseConfig: (toml) => call(mod, "parseConfig", [toml]),
-    processSite: (input) => call(mod, "processSite", [input]),
-    audit: (input) => call(mod, "audit", [input]),
-    liveCheckPlan: (config, routes) => call(mod, "liveCheckPlan", [config, routes]),
-    ragInputs: (input) => call(mod, "ragInputs", [input])
+    parseConfig: bind(mod, "parseConfig"),
+    processSite: bind(mod, "processSite"),
+    audit: bind(mod, "audit"),
+    auditLive: bind(mod, "auditLive"),
+    liveCheckPlan: bind(mod, "liveCheckPlan"),
+    ragInputs: bind(mod, "ragInputs")
   };
 }
 
@@ -264,8 +286,9 @@ function readInputs(env) {
     if (!Number.isInteger(n) || n < min || n > max) problems.push(`${name} must be an integer ${min}\u2013${max}, got "${v}"`);
     return n;
   };
-  const apiToken = required("cloudflare-api-token");
-  const accountId = required("cloudflare-account-id");
+  const deploy = bool("deploy");
+  const apiToken = deploy ? required("cloudflare-api-token") : "";
+  const accountId = deploy ? required("cloudflare-account-id") : "";
   if (accountId !== "" && !ACCOUNT.test(accountId)) problems.push("cloudflare-account-id must be 32 hex characters");
   const workspace = env.get("GITHUB_WORKSPACE") ?? "";
   if (workspace === "") problems.push("GITHUB_WORKSPACE is not set");
@@ -312,6 +335,7 @@ function readInputs(env) {
     lighthouseMaxUrls,
     geoMinScore: geoMinScore ?? 0,
     optimizations: opt.ok ? opt.value : /* @__PURE__ */ new Set(),
+    deploy,
     buildId,
     stateDir
   };
@@ -747,7 +771,8 @@ async function npmInstallAndBuild(io, dir, buildCommand) {
 async function writeOutputFile(fs, outputDir, file, contents) {
   await fs.writeText(outputDirWithin(outputDir, file), contents);
 }
-async function staticAuditInput(fs, outputDir, config, pages) {
+async function staticAuditInput(fs, src) {
+  const { outputDir, config, buildId, pages } = src;
   const read = (f) => fs.readTextIfExists(join3(outputDir, f));
   const robots = await read("robots.txt");
   const sitemap = await read("sitemap.xml");
@@ -757,7 +782,7 @@ async function staticAuditInput(fs, outputDir, config, pages) {
     const htmlFile = p.markdownFile.replace(/\.md$/, ".html");
     auditPages.push({ route: p.route, html: await fs.readText(join3(outputDir, htmlFile)), markdown: await fs.readText(join3(outputDir, p.markdownFile)) });
   }
-  const input = { config, pages: auditPages, robots, headers: await read("_headers") ?? "", sitemap };
+  const input = { config, buildId, pages: auditPages, robots, headers: await read("_headers") ?? "", sitemap };
   const llms = await read("llms.txt");
   if (llms !== void 0) input.llms = llms;
   return input;
@@ -768,7 +793,7 @@ async function auditStage(ctx) {
   const config = need(ctx.state, "config", "audit");
   const { outputDir } = need(ctx.state, "build", "audit");
   const processed = need(ctx.state, "processed", "audit");
-  const input = await staticAuditInput(ctx.io.fs, outputDir, config, processed.pages);
+  const input = await staticAuditInput(ctx.io.fs, { outputDir, config, buildId: ctx.inputs.buildId, pages: processed.pages });
   const report = unwrap("audit", ctx.core.audit(input));
   ctx.state.staticAudit = report;
   ctx.io.log.info(`GEO score (static) ${report.score}`);
@@ -1700,6 +1725,11 @@ async function preflight(ctx) {
   if (!inputs.domains.includes(host)) throw new Error(`site.origin host ${host} is not listed in the domains input`);
   const missingEnv = config.env.filter((name) => io.env.get(name) === void 0);
   if (missingEnv.length > 0) throw new Error(`geoharness.toml env lists names that are not set: ${missingEnv.join(", ")}`);
+  if (!inputs.deploy) {
+    ctx.state.dryRun = true;
+    io.log.info("deploy: false \u2014 dry run: no Cloudflare API call, no deploy, no zone change");
+    return;
+  }
   const zone = await findZone(ctx, host);
   const values = { account_id: inputs.accountId, zone_name: zone?.name ?? host };
   if (zone !== void 0) values.zone_id = zone.id;
@@ -1788,6 +1818,7 @@ function auditSection(title, r) {
 function renderSummary(state, failure) {
   const out = ["## GeoHarness", ""];
   if (failure !== void 0) out.push(`**Failed:** ${cell(failure)}`, "");
+  if (state.dryRun === true) out.push("Dry run (`deploy: false`): nothing was deployed and the zone was not touched.", "");
   if (state.deploy !== void 0) out.push(`Deployed to ${state.deploy.url} (${state.deploy.target})`, "");
   if (state.liveAudit !== void 0) out.push(...auditSection("GEO score (live)", state.liveAudit));
   if (state.staticAudit !== void 0) out.push(...auditSection("GEO score (build)", state.staticAudit));
@@ -1849,10 +1880,10 @@ async function verifyStage(ctx) {
   const { outputDir } = need(ctx.state, "build", "verify");
   const { url } = need(ctx.state, "deploy", "verify");
   await waitForBuild(ctx.io, { url, buildId: ctx.inputs.buildId, ...VERIFY_POLL });
-  const plan = unwrap("liveCheckPlan", ctx.core.liveCheckPlan(config, processed.pages.map((p) => p.route)));
+  const plan = unwrap("liveCheckPlan", ctx.core.liveCheckPlan({ config, routes: processed.pages.map((p) => p.route), buildId: ctx.inputs.buildId }));
   const live = [];
   for (const req of plan) live.push(await observe(ctx.io, req));
-  const input = await staticAuditInput(ctx.io.fs, outputDir, config, processed.pages);
+  const input = await staticAuditInput(ctx.io.fs, { outputDir, config, buildId: ctx.inputs.buildId, pages: processed.pages });
   const report = unwrap("audit", ctx.core.audit({ ...input, live }));
   ctx.state.liveAudit = report;
   ctx.io.log.info(`GEO score (live) ${report.score} from ${live.length} live requests`);
@@ -2061,10 +2092,15 @@ var STAGES = {
   summary: summaryStage
 };
 var STAGE_ORDER = Object.keys(STAGES);
+var DEPLOY_STAGES = /* @__PURE__ */ new Set(["deploy", "zone", "verify", "indexnow"]);
 function isStageName(s) {
   return Object.hasOwn(STAGES, s);
 }
 async function runStage(ctx, name) {
+  if (!ctx.inputs.deploy && DEPLOY_STAGES.has(name)) {
+    ctx.io.log.info(`geoharness ${name}: skipped (deploy: false)`);
+    return;
+  }
   try {
     await ctx.io.log.group(`geoharness ${name}`, () => STAGES[name](ctx));
   } finally {
@@ -2091,7 +2127,8 @@ var CLOUDFLARE_TIMEOUT_MS = 3e4;
 var USAGE = `usage:
   geoharness run                 all stages in order (${STAGE_ORDER.join(", ")})
   geoharness <stage>             one stage; state carries over in $GEOHARNESS_STATE_DIR
-  geoharness audit <url> [--config geoharness.toml]   live-only audit of any URL`;
+  geoharness audit <url> [--config geoharness.toml --build-id <sha>] [--build-id <sha>]
+                                 live audit of any URL (config-less unless --config)`;
 var HERE = dirname2(fileURLToPath(import.meta.url));
 var CORE_MODULE = join19(HERE, "core", "geoharness_wasm.js");
 var NEGOTIATE_MODULE = join19(HERE, "..", "edge", "negotiate.mjs");
@@ -2104,13 +2141,18 @@ async function main(argv) {
   }
   const core = loadWasmCore(CORE_MODULE);
   if (command === "audit") {
-    const [target, flag, configPath] = rest;
-    if (target === void 0 || flag !== void 0 && (flag !== "--config" || configPath === void 0)) {
+    const parsed = parseAuditArgs(rest);
+    if (parsed === void 0) {
       io.log.error(USAGE);
       return 2;
     }
-    const toml = configPath === void 0 ? void 0 : await io.fs.readText(configPath);
-    io.log.info(formatReport(target, await auditUrl(io, core, target, toml)));
+    const configToml = parsed.config === void 0 ? void 0 : await io.fs.readText(parsed.config);
+    const report = await auditUrl(io, core, {
+      target: parsed.target,
+      ...configToml === void 0 ? {} : { configToml },
+      ...parsed.buildId === void 0 ? {} : { buildId: parsed.buildId }
+    });
+    io.log.info(formatReport(parsed.target, report));
     return 0;
   }
   if (command !== "run" && !isStageName(command)) {

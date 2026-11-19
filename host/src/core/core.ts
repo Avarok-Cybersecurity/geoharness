@@ -1,13 +1,15 @@
 import type {
-  AuditInput, AuditReport, CoreError, LiveRequest, RagInput, RagOutput, Result, SiteConfig, SiteInput, SiteOutput,
+  AuditInput, AuditReport, CoreError, LiveAuditInput, LiveCheckInput, LiveRequest, RagInput, RagOutput, Result, SiteConfig,
+  SiteInput, SiteOutput,
 } from './types-index.js';
 
-/** The pure core, as seen by the host (docs/architecture/contract.md §1–5). */
+/** The pure core, as seen by the host (docs/architecture/contract.md §1–5, including auditLive). */
 export interface Core {
   parseConfig(toml: string): Result<SiteConfig>;
   processSite(input: SiteInput): Result<SiteOutput>;
   audit(input: AuditInput): Result<AuditReport>;
-  liveCheckPlan(config: SiteConfig, routes: string[]): Result<LiveRequest[]>;
+  liveCheckPlan(input: LiveCheckInput): Result<LiveRequest[]>;
+  auditLive(input: LiveAuditInput): Result<AuditReport>;
   ragInputs(input: RagInput): Result<RagOutput>;
 }
 

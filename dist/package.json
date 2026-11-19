@@ -1,0 +1,4 @@
+{
+  "//": "dist/core/ holds wasm-bindgen --target nodejs output (CommonJS); the root package.json is \"type\": \"module\".",
+  "type": "commonjs"
+}
