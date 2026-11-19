@@ -1,0 +1,80 @@
+{
+  "description": "SSOT: every Cloudflare API token permission group GeoHarness needs, per feature. Names follow https://developers.cloudflare.com/fundamentals/api/reference/permissions/ (citation cf-api-permissions). Preflight probes each enabled feature with a harmless GET; a probe proves the token can reach the resource, the write itself is proven when the stage applies it.",
+  "features": {
+    "workers-deploy": {
+      "description": "Upload the assets-only (or negotiate) Worker",
+      "groups": [{ "name": "Workers Scripts Write", "scope": "account" }],
+      "probe": "/accounts/{account_id}/workers/scripts"
+    },
+    "workers-custom-domain": {
+      "description": "Attach the site's domains to the Worker as Custom Domains",
+      "groups": [{ "name": "Workers Routes Write", "scope": "zone" }, { "name": "DNS Write", "scope": "zone" }],
+      "probe": "/accounts/{account_id}/workers/domains"
+    },
+    "pages-deploy": {
+      "description": "Create the Pages project and upload a deployment",
+      "groups": [{ "name": "Cloudflare Pages Write", "scope": "account" }],
+      "probe": "/accounts/{account_id}/pages/projects"
+    },
+    "pages-custom-domain": {
+      "description": "Attach domains to the Pages project and create their proxied CNAMEs",
+      "groups": [{ "name": "Cloudflare Pages Write", "scope": "account" }, { "name": "DNS Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/dns_records"
+    },
+    "zone-read": {
+      "description": "Find the zone that serves each domain",
+      "groups": [{ "name": "Zone Read", "scope": "zone" }],
+      "probe": "/zones?name={zone_name}"
+    },
+    "rewrite-rules": {
+      "description": "URL Rewrite Transform Rules that serve markdown twins on Accept: text/markdown",
+      "groups": [{ "name": "Zone Transform Rules Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/rulesets"
+    },
+    "email_obfuscation": {
+      "description": "Turn Email Obfuscation off (it rewrites HTML that agents and twins read)",
+      "groups": [{ "name": "Zone Settings Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/settings/email_obfuscation"
+    },
+    "rocket_loader": {
+      "description": "Turn Rocket Loader off (it rewrites script tags and hurts Lighthouse)",
+      "groups": [{ "name": "Zone Settings Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/settings/rocket_loader"
+    },
+    "early_hints": {
+      "description": "Turn Early Hints on",
+      "groups": [{ "name": "Zone Settings Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/settings/early_hints"
+    },
+    "http3": {
+      "description": "Turn HTTP/3 on",
+      "groups": [{ "name": "Zone Settings Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/settings/http3"
+    },
+    "brotli": {
+      "description": "Turn Brotli on",
+      "groups": [{ "name": "Zone Settings Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/settings/brotli"
+    },
+    "smart_tiered_cache": {
+      "description": "Turn Smart Tiered Cache on",
+      "groups": [{ "name": "Zone Settings Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/cache/tiered_cache_smart_topology_enable"
+    },
+    "zstd": {
+      "description": "Compression Rule preferring zstd for the site's host",
+      "groups": [{ "name": "Response Compression Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/rulesets"
+    },
+    "bot_fight_mode": {
+      "description": "Turn Bot Fight Mode off so AI crawlers receive HTTP 200",
+      "groups": [{ "name": "Bot Management Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/bot_management"
+    },
+    "ai_bots_protection": {
+      "description": "Set AI bots protection to disabled so AI crawlers receive HTTP 200",
+      "groups": [{ "name": "Bot Management Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/bot_management"
+    }
+  }
+}
