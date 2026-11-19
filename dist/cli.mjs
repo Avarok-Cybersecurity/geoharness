@@ -689,10 +689,15 @@ function collect(child, log, options) {
   });
   return { all: () => all, out: () => stdout, err: () => stderr };
 }
+function childEnv(parent, extra) {
+  const env = {};
+  for (const [k, v] of Object.entries(parent)) if (!k.startsWith("INPUT_")) env[k] = v;
+  return { ...env, ...extra };
+}
 function spawnArgs(command, args, options, detached) {
   return spawn(command, args, {
     cwd: options.cwd,
-    env: { ...process.env, ...options.env },
+    env: childEnv(process.env, options.env),
     shell: false,
     detached,
     stdio: ["ignore", "pipe", "pipe"]

@@ -52,10 +52,21 @@ function collect(child: ChildProcess, log: Log, options: StartOptions): Collecte
   return { all: () => all, out: () => stdout, err: () => stderr };
 }
 
+/**
+ * The child's environment: GeoHarness's own, minus the action inputs, plus `extra`. action.yml hands every input
+ * to the host as INPUT_*, the Cloudflare API token included; inherited, it would reach the site's build and every
+ * install script of its dependencies. A child gets a credential only when a caller passes it in `extra`.
+ */
+export function childEnv(parent: NodeJS.ProcessEnv, extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const [k, v] of Object.entries(parent)) if (!k.startsWith('INPUT_')) env[k] = v;
+  return { ...env, ...extra };
+}
+
 function spawnArgs(command: string, args: readonly string[], options: StartOptions, detached: boolean): ChildProcess {
   return spawn(command, args, {
     cwd: options.cwd,
-    env: { ...process.env, ...options.env },
+    env: childEnv(process.env, options.env),
     shell: false,
     detached,
     stdio: ['ignore', 'pipe', 'pipe'],
