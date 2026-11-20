@@ -126,7 +126,12 @@ markdown?: string,
  */
 lastmod?: string, };
 
-export type SiteOutput = { files: Array<OutFile>, rewriteRules: Array<RewriteRule>, pages: Array<PageSummary>, warnings: Array<CoreError>, };
+export type SiteOutput = { files: Array<OutFile>, rewriteRules: Array<RewriteRule>, pages: Array<PageSummary>, 
+/**
+ * Routes matched by `content.exclude`: their HTML is in `files`, but
+ * they get no twin and no summary in `pages`.
+ */
+excludedRoutes: Array<string>, warnings: Array<CoreError>, };
 
 export type OutFile = { file: string, contents: string, };
 
@@ -151,7 +156,12 @@ export type AuditInput = { config: SiteConfig,
 /**
  * The deployed commit; the live build-meta check compares against it.
  */
-buildId: string, pages: Array<AuditPage>, robots: string, headers: string, llms?: string, sitemap: string, 
+buildId: string, pages: Array<AuditPage>, 
+/**
+ * `SiteOutput.excludedRoutes`: pages in the output that are not audited;
+ * links to them resolve.
+ */
+excludedRoutes: Array<string>, robots: string, headers: string, llms?: string, sitemap: string, 
 /**
  * Present only for the post-deploy audit.
  */

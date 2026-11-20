@@ -35,6 +35,13 @@ All notable changes to GeoHarness are documented here. The format follows
 
 ### Fixed
 
+- The Lighthouse gates audited the sitemap's first `lighthouse-max-urls` entries whatever they were, so a site whose
+  own sitemap lists `/llms.txt` failed with `NOT_HTML`. Both gates now audit only pages GeoHarness processed, in
+  sitemap order: not text files, not `content.exclude` routes.
+- A link to a `content.exclude` route failed `index.broken_links`, although the excluded page is in the output
+  (excluding `/app/` failed every page that linked to it). `processSite` now reports the routes it passed through as
+  `excludedRoutes`, the audit takes them as the required `AuditInput.excludedRoutes`, and links to them resolve; a
+  link that only matches an exclude glob, with no page behind it, is still broken.
 - `[content] sources` in a shallow clone (`actions/checkout`'s default `fetch-depth: 1`) dated every page by the tip
   commit, silently. GeoHarness now refuses a shallow checkout when `sources` is set and says to use `fetch-depth: 0`;
   the Quick start workflow sets it (#8).

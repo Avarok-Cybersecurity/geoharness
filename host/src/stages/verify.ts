@@ -18,7 +18,7 @@ async function liveAudit(ctx: StageContext): Promise<string[]> {
   const plan = unwrap('liveCheckPlan', ctx.core.liveCheckPlan({ config, routes: processed.pages.map((p) => p.route), buildId: ctx.inputs.buildId }));
   const live = [];
   for (const req of plan) live.push(await observe(ctx.io, req));
-  const input = await staticAuditInput(ctx.io.fs, { outputDir, config, buildId: ctx.inputs.buildId, pages: processed.pages });
+  const input = await staticAuditInput(ctx.io.fs, { outputDir, config, buildId: ctx.inputs.buildId, pages: processed.pages, excludedRoutes: processed.excludedRoutes });
   const report = unwrap('audit', ctx.core.audit({ ...input, live }));
   ctx.state.liveAudit = report;
   ctx.io.log.info(`GEO score (live) ${report.score} from ${live.length} live requests`);

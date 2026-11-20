@@ -72,6 +72,9 @@ pub struct SiteOutput {
     pub files: Vec<OutFile>,
     pub rewrite_rules: Vec<RewriteRule>,
     pub pages: Vec<PageSummary>,
+    /// Routes matched by `content.exclude`: their HTML is in `files`, but
+    /// they get no twin and no summary in `pages`.
+    pub excluded_routes: Vec<String>,
     pub warnings: Vec<CoreError>,
 }
 

@@ -36,6 +36,8 @@ export interface RunState {
   build?: BuildResult;
   processed?: {
     pages: PageSummary[];
+    /** Routes `content.exclude` passed through: in the output, not processed. */
+    excludedRoutes: string[];
     rewriteRules: RewriteRule[];
     warnings: CoreError[];
     files: string[];

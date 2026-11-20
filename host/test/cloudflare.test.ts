@@ -33,7 +33,7 @@ async function zoneRun(fake: FakeCf, domains: string[] = ['geo.example.com']): P
       config,
       access: { zone: { ...ZONE, plan: undefined }, negotiation: 'rules', optimizations: ['email_obfuscation', 'early_hints', 'smart_tiered_cache', 'zstd', 'bot_fight_mode', 'ai_bots_protection'], takeover: [] },
       build: { outputDir: '/out', notFoundHandling: '404-page' },
-      processed: { pages: processed.value.pages, rewriteRules: processed.value.rewriteRules, warnings: [], files: [] },
+      processed: { pages: processed.value.pages, excludedRoutes: [], rewriteRules: processed.value.rewriteRules, warnings: [], files: [] },
     },
   });
   await zoneStage(ctx);

@@ -13,6 +13,9 @@ pub struct AuditInput {
     /// The deployed commit; the live build-meta check compares against it.
     pub build_id: String,
     pub pages: Vec<AuditPage>,
+    /// `SiteOutput.excludedRoutes`: pages in the output that are not audited;
+    /// links to them resolve.
+    pub excluded_routes: Vec<String>,
     pub robots: String,
     pub headers: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

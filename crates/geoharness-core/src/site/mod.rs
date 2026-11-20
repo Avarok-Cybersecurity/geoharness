@@ -21,6 +21,7 @@ pub fn process_site(input: &SiteInput) -> Result<SiteOutput, Vec<CoreError>> {
     let mut warnings = Vec::new();
     let mut page_files = Vec::new();
     let mut processed = Vec::new();
+    let mut excluded_routes = Vec::new();
     for page in &input.pages {
         let templated = templated(input, page);
         let templated = match templated {
@@ -35,6 +36,7 @@ pub fn process_site(input: &SiteInput) -> Result<SiteOutput, Vec<CoreError>> {
                 file: page.file.clone(),
                 contents: templated.html,
             });
+            excluded_routes.push(page.route.clone());
             continue;
         }
         match page::process(config, &input.build_id, &templated, &mut warnings) {
@@ -104,6 +106,7 @@ pub fn process_site(input: &SiteInput) -> Result<SiteOutput, Vec<CoreError>> {
             .flat_map(|h| rewrite::rules(h, bare))
             .collect(),
         pages: processed.into_iter().map(|p| p.summary).collect(),
+        excluded_routes,
         warnings,
     })
 }
