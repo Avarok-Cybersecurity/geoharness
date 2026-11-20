@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import type { PageInput } from '../core/types-index.js';
 import type { HostIO } from '../io/types.js';
+import { requireFullHistory } from '../lib/full-history.js';
 
 /** Files that are served but are not pages of their own. */
 const NOT_PAGES = new Set(['404.html']);
@@ -25,7 +26,8 @@ export interface PagesOptions {
 
 /**
  * Maps every HTML file in the output to a route. lastmod is the last commit of the page's source
- * (the tracked output file, else its source markdown); never the current time.
+ * (the tracked output file, else its source markdown); never the current time. A shallow clone is refused
+ * once git has dated any page, since every such date would be the tip's.
  */
 export async function pagesFromOutput(outputDir: string, io: HostIO, opts: PagesOptions): Promise<PageInput[]> {
   const files = (await io.fs.listFiles(outputDir)).filter((f) => f.endsWith('.html') && !NOT_PAGES.has(f));
@@ -47,5 +49,6 @@ export async function pagesFromOutput(outputDir: string, io: HostIO, opts: Pages
     if (lastmod !== undefined) page.lastmod = lastmod;
     pages.push(page);
   }
+  if (pages.some((p) => p.lastmod !== undefined)) await requireFullHistory(io, opts.siteDir, 'Page lastmod');
   return pages;
 }
