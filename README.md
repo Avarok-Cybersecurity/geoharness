@@ -85,7 +85,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           # lastmod is a git date; a shallow clone (the default depth 1) would date every page by the tip commit,
-          # so GeoHarness refuses one when content.sources is set.
+          # so GeoHarness refuses one whenever git dates a page.
           fetch-depth: 0
       - uses: Avarok-Cybersecurity/geoharness@v1
         with:
@@ -96,6 +96,8 @@ jobs:
           domains: www.example.com
           geo-min-score: 80
           lighthouse-max-urls: 5
+          # Zone-wide Cloudflare settings (every host on the zone); opt out of any your other hosts rely on.
+          extra-optimizations: all -email_obfuscation -rocket_loader
           # Pull requests build, audit and run Lighthouse without deploying or touching the zone.
           deploy: ${{ github.event_name == 'push' }}
           # Required when deploying: put the previous version back if the live checks fail.
@@ -144,7 +146,7 @@ Composite actions do not enforce `required`, so GeoHarness validates every input
 | `lighthouse` | no | `true` | Run the Lighthouse gates (100 in all four categories, median of 3 runs): before deploy against the output served locally by wrangler with the deploy's own config, and after deploy against the live site. false skips both. |
 | `lighthouse-max-urls` | no | — | How many URLs from the generated sitemap Lighthouse audits, locally and live. Required when lighthouse is true. |
 | `geo-min-score` | yes | — | Minimum GEO score (0–100) for the build audit and the live audit. |
-| `extra-optimizations` | no | `all` | Free zone optimizations, as tokens applied left to right: all, none, &lt;id>, -&lt;id>. Ids: email_obfuscation, rocket_loader, early_hints, http3, brotli, smart_tiered_cache, zstd, bot_fight_mode, ai_bots_protection. Example: "all -rocket_loader". |
+| `extra-optimizations` | yes | — | Free zone optimizations, as tokens applied left to right: all, none, &lt;id>, -&lt;id>. Ids: email_obfuscation, rocket_loader, early_hints, http3, brotli, smart_tiered_cache, zstd, bot_fight_mode, ai_bots_protection. Example: "all -rocket_loader". Zone-wide: they apply to every host on the zone, not only this site, so each site states its choice; there is no default. |
 | `deploy` | no | `true` | true deploys, configures the zone, verifies live and pings IndexNow. false is a dry run for pull requests: build, process, GEO audit and Lighthouse only, with no Cloudflare API call. |
 | `rollback-on-failure` | no | — | Required when deploy is true (no default). true: when the post-deploy verification (live GEO audit or the production Lighthouse gate) fails or cannot complete, put production back on the version it served before this deploy (wrangler rollback for workers, the Pages rollback API for pages), then fail. false: fail and leave the new build live. A first deploy has nothing to roll back to and just fails. |
 | `takeover-dns` | no | — | workers target only; no default. When a domain still has its own A, AAAA or CNAME records (e.g. a CNAME to a Pages project), Cloudflare cannot bind it to the Worker (error 100117) and preflight fails before the build, explaining the move. true: after uploading the Worker, GeoHarness deletes those records and at once attaches the host as a Worker Custom Domain, host by host (zero downtime); then remove the host from the old Pages project. false: never touch them; do the move by hand. Not needed when no domain has such records. |

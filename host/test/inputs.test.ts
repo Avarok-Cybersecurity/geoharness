@@ -31,6 +31,10 @@ describe('inputs', () => {
     ]));
   });
 
+  it('extra-optimizations has no default: the settings are zone-wide, so each site must state them', () => {
+    expect(() => read({ INPUT_EXTRA_OPTIMIZATIONS: '' })).toThrow(/extra-optimizations is required/);
+  });
+
   it('a dry run (deploy: false) needs no Cloudflare credentials; a deploy does', () => {
     const dry = read({ INPUT_DEPLOY: 'false', INPUT_CLOUDFLARE_API_TOKEN: '', INPUT_CLOUDFLARE_ACCOUNT_ID: '' });
     expect(dry.deploy).toBe(false);
