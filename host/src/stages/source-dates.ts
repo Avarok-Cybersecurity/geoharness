@@ -1,5 +1,6 @@
 import type { SiteConfig } from '../core/types-index.js';
 import type { HostIO } from '../io/types.js';
+import { requireFullHistory } from '../lib/full-history.js';
 
 /** git's ISO 8601 date (any offset) as UTC `YYYY-MM-DDTHH:MM:SSZ`, the one format the core compares. */
 function toUtcSeconds(iso: string): string {
@@ -15,13 +16,7 @@ function toUtcSeconds(iso: string): string {
  */
 export async function sourceDates(io: HostIO, siteDir: string, config: SiteConfig): Promise<Record<string, string>> {
   const globs = [...new Set(Object.values(config.content.sources).flat())];
-  if (globs.length > 0 && (await io.git.isShallow(siteDir))) {
-    throw new Error(
-      'content.sources needs full git history, but the checkout is shallow: every source would be dated by the '
-      + 'shallow tip, not its own last commit. Check out with `fetch-depth: 0` (actions/checkout) or run '
-      + '`git fetch --unshallow`.',
-    );
-  }
+  if (globs.length > 0) await requireFullHistory(io, siteDir, 'content.sources');
   const out: Record<string, string> = {};
   for (const g of globs) {
     const date = await io.git.lastCommitDate(siteDir, `:(glob)${g}`);

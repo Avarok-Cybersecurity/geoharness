@@ -38,6 +38,9 @@ All notable changes to GeoHarness are documented here. The format follows
 - `[content] sources` in a shallow clone (`actions/checkout`'s default `fetch-depth: 1`) dated every page by the tip
   commit, silently. GeoHarness now refuses a shallow checkout when `sources` is set and says to use `fetch-depth: 0`;
   the Quick start workflow sets it (#8).
+- The adapters' own page dates (the last commit of a tracked output file or its source markdown) had the same
+  flaw in a shallow clone. Once git dates any page, a shallow checkout is now refused with the same message; a site
+  whose output git does not track is unaffected.
 - A site `_headers` rule that already sets a different `Content-Signal` got GeoHarness's as well, so responses
   carried two conflicting signals. That is now the error `headers.conflict`; an identical value is fine.
 - Rewrite rules for every domain, not only the host of `site.origin`: `www.` and other listed hosts answered

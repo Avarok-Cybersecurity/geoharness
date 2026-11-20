@@ -974,6 +974,16 @@ ${failures.map((f) => `  - ${f}`).join("\n")}`);
 
 // host/src/adapters/pages.ts
 import { join as join4 } from "node:path";
+
+// host/src/lib/full-history.ts
+async function requireFullHistory(io, repoDir, needer) {
+  if (!await io.git.isShallow(repoDir)) return;
+  throw new Error(
+    `${needer} needs full git history, but the checkout is shallow: every date would be the shallow tip's, not the file's own last commit. Check out with \`fetch-depth: 0\` (actions/checkout) or run \`git fetch --unshallow\`.`
+  );
+}
+
+// host/src/adapters/pages.ts
 var NOT_PAGES = /* @__PURE__ */ new Set(["404.html"]);
 function routeForFile(file) {
   if (file === "index.html") return "/";
@@ -1004,6 +1014,7 @@ async function pagesFromOutput(outputDir, io, opts) {
     if (lastmod !== void 0) page.lastmod = lastmod;
     pages.push(page);
   }
+  if (pages.some((p) => p.lastmod !== void 0)) await requireFullHistory(io, opts.siteDir, "Page lastmod");
   return pages;
 }
 
@@ -2552,11 +2563,7 @@ function toUtcSeconds(iso) {
 }
 async function sourceDates(io, siteDir, config) {
   const globs = [...new Set(Object.values(config.content.sources).flat())];
-  if (globs.length > 0 && await io.git.isShallow(siteDir)) {
-    throw new Error(
-      "content.sources needs full git history, but the checkout is shallow: every source would be dated by the shallow tip, not its own last commit. Check out with `fetch-depth: 0` (actions/checkout) or run `git fetch --unshallow`."
-    );
-  }
+  if (globs.length > 0) await requireFullHistory(io, siteDir, "content.sources");
   const out = {};
   for (const g of globs) {
     const date = await io.git.lastCommitDate(siteDir, `:(glob)${g}`);
