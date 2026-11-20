@@ -27,6 +27,11 @@ pub fn audit(input: &AuditInput) -> Result<AuditReport, Vec<CoreError>> {
     let config = &input.config;
     let selector = &config.content.main_selector;
     let routes: Vec<&str> = input.pages.iter().map(|p| p.route.as_str()).collect();
+    let link_targets: Vec<&str> = routes
+        .iter()
+        .copied()
+        .chain(input.excluded_routes.iter().map(String::as_str))
+        .collect();
     let entities = [config.identity.name.as_str(), config.site.name.as_str()];
     let pages = checks::pages(input);
     let mut scored = vec![
@@ -38,7 +43,11 @@ pub fn audit(input: &AuditInput) -> Result<AuditReport, Vec<CoreError>> {
         scored.push(checks::access::spa_shell(p));
         scored.extend(checks::index::head(p));
         scored.push(checks::index::build_meta_early(p, &input.build_id));
-        scored.push(checks::index::broken_links(p, &config.site.origin, &routes));
+        scored.push(checks::index::broken_links(
+            p,
+            &config.site.origin,
+            &link_targets,
+        ));
         scored.push(checks::index::twin(p, selector));
         scored.extend(checks::advisory::page(p, selector, &entities));
         scored.extend(checks::content::quotable_sections(p, selector));

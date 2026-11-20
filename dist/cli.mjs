@@ -158,6 +158,8 @@ async function auditUrl(io, core, o) {
     config,
     buildId: o.buildId,
     pages: [{ route: url.pathname, html: html.body, markdown: md.status === 200 ? md.body : "" }],
+    // Nothing was processed here, so no route is known to have been passed through by content.exclude.
+    excludedRoutes: [],
     robots: robots.status === 200 ? robots.body : "",
     headers: "",
     ...llms.status === 200 ? { llms: llms.body } : {},
@@ -942,7 +944,7 @@ async function writeOutputFile(fs, outputDir, file, contents) {
   await fs.writeText(outputDirWithin(outputDir, file), contents);
 }
 async function staticAuditInput(fs, src) {
-  const { outputDir, config, buildId, pages } = src;
+  const { outputDir, config, buildId, pages, excludedRoutes } = src;
   const read = (f) => fs.readTextIfExists(join3(outputDir, f));
   const robots = await read("robots.txt");
   const sitemap = await read("sitemap.xml");
@@ -952,7 +954,7 @@ async function staticAuditInput(fs, src) {
     const htmlFile = p.markdownFile.replace(/\.md$/, ".html");
     auditPages.push({ route: p.route, html: await fs.readText(join3(outputDir, htmlFile)), markdown: await fs.readText(join3(outputDir, p.markdownFile)) });
   }
-  const input = { config, buildId, pages: auditPages, robots, headers: await read("_headers") ?? "", sitemap };
+  const input = { config, buildId, pages: auditPages, excludedRoutes, robots, headers: await read("_headers") ?? "", sitemap };
   const llms = await read("llms.txt");
   if (llms !== void 0) input.llms = llms;
   return input;
@@ -963,7 +965,7 @@ async function auditStage(ctx) {
   const config = need(ctx.state, "config", "audit");
   const { outputDir } = need(ctx.state, "build", "audit");
   const processed = need(ctx.state, "processed", "audit");
-  const input = await staticAuditInput(ctx.io.fs, { outputDir, config, buildId: ctx.inputs.buildId, pages: processed.pages });
+  const input = await staticAuditInput(ctx.io.fs, { outputDir, config, buildId: ctx.inputs.buildId, pages: processed.pages, excludedRoutes: processed.excludedRoutes });
   const report = unwrap("audit", ctx.core.audit(input));
   ctx.state.staticAudit = report;
   ctx.io.log.info(`GEO score (static) ${report.score}`);
@@ -2139,8 +2141,9 @@ import { join as join16 } from "node:path";
 // host/src/lib/lighthouse-rc.ts
 var LIGHTHOUSE_RUNS = 3;
 var LIGHTHOUSE_CATEGORIES = ["performance", "accessibility", "best-practices", "seo"];
-function lighthouseUrls(sitemapXml, origin, max) {
-  return parseSitemap(sitemapXml).slice(0, max).map((e) => `${origin}${new URL(e.loc).pathname}`);
+function lighthouseUrls(sitemapXml, pageRoutes, origin, max) {
+  const pages = new Set(pageRoutes);
+  return parseSitemap(sitemapXml).map((e) => new URL(e.loc).pathname).filter((path) => pages.has(path)).slice(0, max).map((path) => `${origin}${path}`);
 }
 function lighthouseRc(urls) {
   const assertion = ["error", { minScore: 1, aggregationMethod: "median-run" }];
@@ -2334,11 +2337,12 @@ function describeFailures(r) {
 // host/src/stages/lighthouse.ts
 async function auditedUrls(ctx, origin) {
   const { outputDir } = need(ctx.state, "build", "lighthouse");
+  const { pages } = need(ctx.state, "processed", "lighthouse");
   const sitemap = await ctx.io.fs.readText(join16(outputDir, "sitemap.xml"));
   const max = ctx.inputs.lighthouseMaxUrls;
   if (max === void 0) throw new Error("lighthouse-max-urls is required when lighthouse is true");
-  const urls = lighthouseUrls(sitemap, origin, max);
-  if (urls.length === 0) throw new Error("the generated sitemap.xml lists no URLs to audit");
+  const urls = lighthouseUrls(sitemap, pages.map((p) => p.route), origin, max);
+  if (urls.length === 0) throw new Error("sitemap.xml lists none of the processed pages, so Lighthouse has no URL to audit");
   return urls;
 }
 async function lighthouseStage(ctx) {
@@ -2601,7 +2605,7 @@ async function processStage(ctx) {
   }));
   for (const f of out.files) await writeOutputFile(ctx.io.fs, outputDir, f.file, f.contents);
   for (const w of out.warnings) ctx.io.log.warn(`core: ${formatCoreError(w).trim()}`);
-  ctx.state.processed = { pages: out.pages, rewriteRules: out.rewriteRules, warnings: out.warnings, files: out.files.map((f) => f.file) };
+  ctx.state.processed = { pages: out.pages, excludedRoutes: out.excludedRoutes, rewriteRules: out.rewriteRules, warnings: out.warnings, files: out.files.map((f) => f.file) };
   ctx.io.log.info(`processed ${pages.length} pages; wrote ${out.files.length} files; ${out.pages.length} markdown twins`);
 }
 
@@ -2719,7 +2723,7 @@ async function liveAudit(ctx) {
   const plan = unwrap("liveCheckPlan", ctx.core.liveCheckPlan({ config, routes: processed.pages.map((p) => p.route), buildId: ctx.inputs.buildId }));
   const live2 = [];
   for (const req of plan) live2.push(await observe(ctx.io, req));
-  const input = await staticAuditInput(ctx.io.fs, { outputDir, config, buildId: ctx.inputs.buildId, pages: processed.pages });
+  const input = await staticAuditInput(ctx.io.fs, { outputDir, config, buildId: ctx.inputs.buildId, pages: processed.pages, excludedRoutes: processed.excludedRoutes });
   const report = unwrap("audit", ctx.core.audit({ ...input, live: live2 }));
   ctx.state.liveAudit = report;
   ctx.io.log.info(`GEO score (live) ${report.score} from ${live2.length} live requests`);

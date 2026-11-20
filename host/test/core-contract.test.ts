@@ -18,6 +18,7 @@ function staticAuditInput(): AuditInput {
   return {
     config: input.config, buildId: FIXTURE_BUILD_ID,
     pages: out.pages.map((p) => ({ route: p.route, html: file(htmlFileOf(p.route)) ?? '', markdown: file(p.markdownFile) ?? '' })),
+    excludedRoutes: out.excludedRoutes,
     robots: file('robots.txt') ?? '', headers: file('_headers') ?? '', sitemap: file('sitemap.xml') ?? '',
     ...(llms === undefined ? {} : { llms }),
   };
@@ -56,6 +57,7 @@ describe('real wasm core through the typed adapter', () => {
     expect(out.rewriteRules).toEqual(expectedJson('rewrite-rules.json'));
     expect(out.pages).toEqual(expectedJson('pages.json'));
     expect(out.warnings).toEqual(expectedJson('warnings.json'));
+    expect(out.excludedRoutes).toEqual(['/drafts/wip/']);
   });
 
   it('processSite: malformed input is input.invalid naming the bad field', () => {

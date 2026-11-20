@@ -41,6 +41,7 @@ pub fn static_input() -> AuditInput {
         config: input.config.clone(),
         build_id: common::BUILD_ID.into(),
         pages,
+        excluded_routes: out.excluded_routes.clone(),
         robots: file("robots.txt").unwrap_or_default(),
         headers: file("_headers").unwrap_or_default(),
         llms: file("llms.txt"),

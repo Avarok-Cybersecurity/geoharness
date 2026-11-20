@@ -32,6 +32,6 @@ export async function processStage(ctx: StageContext): Promise<void> {
   }));
   for (const f of out.files) await writeOutputFile(ctx.io.fs, outputDir, f.file, f.contents);
   for (const w of out.warnings) ctx.io.log.warn(`core: ${formatCoreError(w).trim()}`);
-  ctx.state.processed = { pages: out.pages, rewriteRules: out.rewriteRules, warnings: out.warnings, files: out.files.map((f) => f.file) };
+  ctx.state.processed = { pages: out.pages, excludedRoutes: out.excludedRoutes, rewriteRules: out.rewriteRules, warnings: out.warnings, files: out.files.map((f) => f.file) };
   ctx.io.log.info(`processed ${pages.length} pages; wrote ${out.files.length} files; ${out.pages.length} markdown twins`);
 }

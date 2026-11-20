@@ -4,14 +4,15 @@ import { need, type StageContext } from './context.js';
 import { withLocalServer } from './local-server.js';
 import { describeFailures, runLighthouse } from './lighthouse-run.js';
 
-/** The sitemap's first `lighthouse-max-urls` URLs, on `origin`. */
+/** The sitemap's first `lighthouse-max-urls` processed pages, on `origin`. */
 export async function auditedUrls(ctx: StageContext, origin: string): Promise<string[]> {
   const { outputDir } = need(ctx.state, 'build', 'lighthouse');
+  const { pages } = need(ctx.state, 'processed', 'lighthouse');
   const sitemap = await ctx.io.fs.readText(join(outputDir, 'sitemap.xml'));
   const max = ctx.inputs.lighthouseMaxUrls;
   if (max === undefined) throw new Error('lighthouse-max-urls is required when lighthouse is true');
-  const urls = lighthouseUrls(sitemap, origin, max);
-  if (urls.length === 0) throw new Error('the generated sitemap.xml lists no URLs to audit');
+  const urls = lighthouseUrls(sitemap, pages.map((p) => p.route), origin, max);
+  if (urls.length === 0) throw new Error('sitemap.xml lists none of the processed pages, so Lighthouse has no URL to audit');
   return urls;
 }
 

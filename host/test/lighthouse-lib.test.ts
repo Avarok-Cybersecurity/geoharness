@@ -4,10 +4,18 @@ import { lighthouseFailures, lighthouseMedians } from '../src/lib/lighthouse-rep
 
 const SITEMAP = '<urlset><url><loc>https://geo.example.com/</loc></url><url><loc>https://geo.example.com/docs/</loc></url><url><loc>https://geo.example.com/a/</loc></url></urlset>';
 
+const PAGES = ['/', '/docs/', '/a/'];
+const MIXED = '<urlset><url><loc>https://geo.example.com/</loc></url><url><loc>https://geo.example.com/llms.txt</loc></url><url><loc>https://geo.example.com/app/</loc></url><url><loc>https://geo.example.com/docs/</loc></url><url><loc>https://geo.example.com/a/</loc></url></urlset>';
+
 describe('lighthouseUrls', () => {
   it('maps sitemap paths onto the audited origin, capped', () => {
-    expect(lighthouseUrls(SITEMAP, 'http://127.0.0.1:8787', 2)).toEqual(['http://127.0.0.1:8787/', 'http://127.0.0.1:8787/docs/']);
-    expect(lighthouseUrls(SITEMAP, 'https://geo.example.com', 5)).toHaveLength(3);
+    expect(lighthouseUrls(SITEMAP, PAGES, 'http://127.0.0.1:8787', 2)).toEqual(['http://127.0.0.1:8787/', 'http://127.0.0.1:8787/docs/']);
+    expect(lighthouseUrls(SITEMAP, PAGES, 'https://geo.example.com', 5)).toHaveLength(3);
+  });
+
+  it('audits only processed pages, in sitemap order: not llms.txt, not an excluded page', () => {
+    expect(lighthouseUrls(MIXED, PAGES, 'https://geo.example.com', 2)).toEqual(['https://geo.example.com/', 'https://geo.example.com/docs/']);
+    expect(lighthouseUrls(MIXED, ['/a/', '/'], '', 5)).toEqual(['/', '/a/']);
   });
 });
 

@@ -68,6 +68,7 @@ export function fakeCore(opts: FakeCoreOptions): Core & { calls: string[] } {
             description: `geoharness:${host} ${kind}`, expression: `(${guard(host)} and ${kind})`, pathExpression: `concat(http.request.uri.path, "${kind}")`,
           }))),
           pages: input.pages.map((p) => ({ route: p.route, markdownFile: twinFile(p.file), title: p.route, description: '', tokens: 7 })),
+          excludedRoutes: [],
           warnings: [],
         },
       };

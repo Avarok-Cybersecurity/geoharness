@@ -50,6 +50,8 @@ export async function auditUrl(io: HostIO, core: Core, o: AuditUrlOptions): Prom
     config,
     buildId: o.buildId,
     pages: [{ route: url.pathname, html: html.body, markdown: md.status === 200 ? md.body : '' }],
+    // Nothing was processed here, so no route is known to have been passed through by content.exclude.
+    excludedRoutes: [],
     robots: robots.status === 200 ? robots.body : '',
     headers: '',
     ...(llms.status === 200 ? { llms: llms.body } : {}),
