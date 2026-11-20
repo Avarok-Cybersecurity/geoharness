@@ -61,6 +61,13 @@ describe('inputs', () => {
     expect([i.summaryFile, i.outputFile]).toEqual(['/tmp/gh/summary.md', '/tmp/gh/output.txt']);
   });
 
+  it('certificate-renewal is auto or force; preflight decides whether it is required', () => {
+    expect(read({}).certificateRenewal).toBeUndefined();
+    expect(read({ INPUT_CERTIFICATE_RENEWAL: 'auto' }).certificateRenewal).toBe('auto');
+    expect(read({ INPUT_CERTIFICATE_RENEWAL: 'force' }).certificateRenewal).toBe('force');
+    expect(() => read({ INPUT_CERTIFICATE_RENEWAL: 'true' })).toThrow(/certificate-renewal must be "auto" or "force"/);
+  });
+
   it('takeover-dns is optional, strictly boolean, and only for the workers target', () => {
     expect(read({}).takeoverDns).toBeUndefined();
     expect(read({ INPUT_TAKEOVER_DNS: 'true' }).takeoverDns).toBe(true);

@@ -37,10 +37,10 @@ describe('gate and build meta', () => {
 
 describe('cloudflare-permissions.json', () => {
   it('covers every optimization and deploy feature', () => {
-    for (const id of [...OPTIMIZATION_IDS, 'workers-deploy', 'workers-custom-domain', 'pages-deploy', 'pages-custom-domain', 'zone-read', 'rewrite-rules']) {
+    for (const id of [...OPTIMIZATION_IDS, 'workers-deploy', 'workers-custom-domain', 'pages-deploy', 'pages-custom-domain', 'zone-read', 'rewrite-rules', 'certificates']) {
       expect(featurePermissions(id).groups.length).toBeGreaterThan(0);
     }
-    expect(allFeatureIds()).toHaveLength(OPTIMIZATION_IDS.length + 6);
+    expect(allFeatureIds()).toHaveLength(OPTIMIZATION_IDS.length + 7);
   });
   it('expands probe placeholders and refuses missing ones', () => {
     expect(probePath('/zones/{zone_id}/x', { zone_id: 'z' })).toBe('/zones/z/x');

@@ -28,7 +28,7 @@ describe('current Worker version', () => {
 describe('Pages rollback', () => {
   async function pagesContext(production: Record<string, string>) {
     cf = await startFakeCf({ pagesProduction: production });
-    const io = testIO({ http: { request: (r) => (r.url.startsWith(cf?.baseUrl ?? '-') ? nodeHttp.request(r) : noHttp.request(r)) }, env: {}, proc: recordingProc() });
+    const io = testIO({ http: { ...noHttp, request: (r) => (r.url.startsWith(cf?.baseUrl ?? '-') ? nodeHttp.request(r) : noHttp.request(r)) }, env: {}, proc: recordingProc() });
     return makeContext({ io, core: fakeCore({ score: 90, blockingFails: false }), inputs: makeInputs({ target: 'pages' }), cfBaseUrl: cf.baseUrl, state: {} });
   }
 
@@ -62,7 +62,7 @@ describe('Worker rollback only to a version that served production', () => {
   async function workersContext(state: Parameters<typeof startFakeCf>[0]) {
     cf = await startFakeCf(state);
     const proc = recordingProc();
-    const io = testIO({ http: { request: (r) => (r.url.startsWith(cf?.baseUrl ?? '-') ? nodeHttp.request(r) : noHttp.request(r)) }, env: {}, proc });
+    const io = testIO({ http: { ...noHttp, request: (r) => (r.url.startsWith(cf?.baseUrl ?? '-') ? nodeHttp.request(r) : noHttp.request(r)) }, env: {}, proc });
     const ctx = makeContext({ io, core: fakeCore({ score: 90, blockingFails: false }), inputs: makeInputs({ domains: ['geo.example.com', 'www.example.com'] }), cfBaseUrl: cf.baseUrl, state: {} });
     return { ctx, proc };
   }

@@ -1,6 +1,7 @@
 import { isAbsolute, resolve } from 'node:path';
 import { ADAPTER_IDS, type AdapterId } from './adapters/ids.js';
 import type { Env } from './io/types.js';
+import type { RenewalMode } from './lib/certificates.js';
 import { parseOptimizations, type OptimizationId } from './lib/optimizations.js';
 
 /**
@@ -31,6 +32,11 @@ export interface Inputs {
    * Domain. undefined (not stated) is fine until preflight finds such records; then the run fails asking for it.
    */
   takeoverDns: boolean | undefined;
+  /**
+   * auto: renew a certificate inside its window; force: renew every one now. Required exactly when
+   * geoharness.toml has [[certificates]]; preflight checks that against the config.
+   */
+  certificateRenewal: RenewalMode | undefined;
   buildId: string;
   stateDir: string;
   /** GITHUB_STEP_SUMMARY and GITHUB_OUTPUT: where the summary and the action outputs are appended. */
@@ -89,6 +95,10 @@ export function readInputs(env: Env): Inputs {
   if (takeoverRaw !== undefined && takeoverRaw !== 'true' && takeoverRaw !== 'false') problems.push(`takeover-dns must be "true" or "false", got "${takeoverRaw}"`);
   const takeoverDns = takeoverRaw === undefined ? undefined : takeoverRaw === 'true';
 
+  const renewalRaw = raw('certificate-renewal');
+  if (renewalRaw !== undefined && renewalRaw !== 'auto' && renewalRaw !== 'force') problems.push(`certificate-renewal must be "auto" or "force", got "${renewalRaw}"`);
+  const certificateRenewal = renewalRaw === 'auto' || renewalRaw === 'force' ? renewalRaw : undefined;
+
   const workspace = env.get('GITHUB_WORKSPACE') ?? '';
   if (workspace === '') problems.push('GITHUB_WORKSPACE is not set');
   const sitePathRaw = required('site-path');
@@ -144,6 +154,6 @@ export function readInputs(env: Env): Inputs {
     target, projectName, domains, lighthouse, lighthouseMaxUrls,
     geoMinScore: geoMinScore ?? 0,
     optimizations: opt.ok ? opt.value : new Set(),
-    deploy, rollbackOnFailure, takeoverDns, buildId, stateDir, summaryFile, outputFile,
+    deploy, rollbackOnFailure, takeoverDns, certificateRenewal, buildId, stateDir, summaryFile, outputFile,
   };
 }

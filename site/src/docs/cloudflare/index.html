@@ -54,10 +54,10 @@
 <tr><td>Cloudflare Pages Write</td><td>account</td><td><code>pages-deploy</code>, <code>pages-custom-domain</code></td></tr>
 <tr><td>Workers Scripts Write</td><td>account</td><td><code>workers-deploy</code></td></tr>
 <tr><td>Bot Management Write</td><td>zone</td><td><code>bot_fight_mode</code>, <code>ai_bots_protection</code></td></tr>
-<tr><td>DNS Write</td><td>zone</td><td><code>workers-custom-domain</code>, <code>pages-custom-domain</code></td></tr>
+<tr><td>DNS Write</td><td>zone</td><td><code>workers-custom-domain</code>, <code>pages-custom-domain</code>, <code>certificates</code></td></tr>
 <tr><td>Response Compression Write</td><td>zone</td><td><code>zstd</code></td></tr>
 <tr><td>Workers Routes Write</td><td>zone</td><td><code>workers-custom-domain</code></td></tr>
-<tr><td>Zone Read</td><td>zone</td><td><code>zone-read</code></td></tr>
+<tr><td>Zone Read</td><td>zone</td><td><code>zone-read</code>, <code>certificates</code></td></tr>
 <tr><td>Zone Settings Write</td><td>zone</td><td><code>email_obfuscation</code>, <code>rocket_loader</code>, <code>early_hints</code>, <code>http3</code>, <code>brotli</code>, <code>smart_tiered_cache</code></td></tr>
 <tr><td>Zone Transform Rules Write</td><td>zone</td><td><code>rewrite-rules</code></td></tr>
 </tbody></table></div>
@@ -73,6 +73,7 @@
 <tr><td><code>pages-custom-domain</code></td><td>Attach domains to the Pages project and create their proxied CNAMEs</td><td>Cloudflare Pages Write (account), DNS Write (zone)</td></tr>
 <tr><td><code>zone-read</code></td><td>Find the zone that serves each domain</td><td>Zone Read (zone)</td></tr>
 <tr><td><code>rewrite-rules</code></td><td>URL Rewrite Transform Rules that serve markdown twins on Accept: text/markdown</td><td>Zone Transform Rules Write (zone)</td></tr>
+<tr><td><code>certificates</code></td><td>Renew [[certificates]] with lego: DNS-01 TXT records in the zone of each certificate's domain</td><td>Zone Read (zone), DNS Write (zone)</td></tr>
 <tr><td><code>email_obfuscation</code></td><td>Turn Email Obfuscation off (it rewrites HTML that agents and twins read)</td><td>Zone Settings Write (zone)</td></tr>
 <tr><td><code>rocket_loader</code></td><td>Turn Rocket Loader off (it rewrites script tags and hurts Lighthouse)</td><td>Zone Settings Write (zone)</td></tr>
 <tr><td><code>early_hints</code></td><td>Turn Early Hints on</td><td>Zone Settings Write (zone)</td></tr>

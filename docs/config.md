@@ -35,6 +35,56 @@ Parsed by `parseConfig` (contract §1). Keys are camelCase. **Unknown keys are e
 | `prerender.routes` | string[] | yes, when `[prerender]` is present | — | literal absolute routes (no globs, query or fragment); read by the host's vite-prerender adapter, validated by the core |
 | `analytics` | table | no | absent (most sites state no analytics; absent behaves as `cloudflareWebAnalytics = false`, which never loosens the site's CSP) | |
 | `analytics.cloudflareWebAnalytics` | bool | yes, when `[analytics]` is present | — (a policy choice; never defaulted) | true: every `Content-Security-Policy` line of the site's `_headers` admits `https://static.cloudflareinsights.com` in `script-src` (and `script-src-elem` when set) and `'self'` plus `https://cloudflareinsights.com` in `connect-src`; a missing directive is created from its `default-src` fallback, so nothing else changes. Reported as the `headers.csp_extended` warning. false: the live audit fails (`index.live_beacon`) if Cloudflare injects the beacon anyway |
+| `certificates` | array of tables | no | `[]` (absent: the site serves no certificate GeoHarness renews) | see [Certificates](#certificates); each `path` at most once |
+| `certificates[].domain` | string | yes | — | the certificate's one name: a lower-case host name, two or more labels, no wildcard; its zone must be on the Cloudflare account (DNS-01) |
+| `certificates[].path` | string | yes | — | output-relative path without extension, served as `<path>.pem` and `<path>.key`: `/`-separated segments of `[A-Za-z0-9._-]`, no leading or trailing `/`, no `.` or `..` segment |
+| `certificates[].renewWithinDays` | integer | yes | — | 1–89: renew when `notAfter − now ≤ renewWithinDays` days (Let's Encrypt certificates last 90) |
+| `certificates[].keyType` | `"ec-256"` \| `"ec-384"` \| `"rsa-2048"` \| `"rsa-3072"` \| `"rsa-4096"` | yes | — | |
+| `certificates[].acmeDirectory` | `"production"` \| `"staging"` | yes | — | Let's Encrypt production, or staging (untrusted certificates, for tests) |
+| `certificates[].acmeEmail` | string | yes | — | one plain address; the ACME account contact |
+
+## Certificates
+
+A site can serve a TLS certificate and its private key as files — for example a certificate for a name that
+resolves to `127.0.0.1`, which a local agent downloads to accept `wss://` from an HTTPS page. GeoHarness keeps each
+`[[certificates]]` pair renewed:
+
+```toml
+[[certificates]]
+domain = "local.example.com"
+path = "agent/loopback"            # served as /agent/loopback.pem and /agent/loopback.key
+renewWithinDays = 30
+keyType = "ec-256"
+acmeDirectory = "production"
+acmeEmail = "security@example.com"
+```
+
+The `certificates` stage runs after `build` and before `process`, so the pair is part of the tree that is audited,
+Lighthouse-tested and deployed. The stage owns `<path>.pem` and `<path>.key`: a build that produces either is an
+error. For each entry it fetches the pair the site serves now (`<origin>/<path>.pem` and `.key`) and:
+
+- **keeps** it, byte for byte, when the certificate is for `domain` (its only SAN), the key matches it, and more than
+  `renewWithinDays` days are left;
+- **renews** it otherwise — inside the window, expired, missing (404), unparsable, for another name, with a key that
+  does not match, or every time with `certificate-renewal: force`. Renewal runs the pinned
+  [lego](https://github.com/go-acme/lego) (its sha256 is checked before it runs) with DNS-01 through Cloudflare:
+  the API token reaches lego only as the environment variable `CF_DNS_API_TOKEN`, never on its command line, and
+  lego's account, binary and the new key live in a directory under `RUNNER_TEMP` that is deleted afterwards. The
+  token needs Zone Read and DNS Write on the zone of `domain` (feature `certificates`, probed in preflight).
+
+A renewal that fails while the live certificate is still valid is a **warning**: the live pair ships, so a renewal
+failure never takes a working site down; the job summary says "renewal failed, kept old" and the next run tries
+again. It fails the run only when the live pair is expired, missing or unusable. Any HTTP status other than 200
+or 404 for the live pair stops the run rather than renewing.
+
+A dry run (`deploy: false`) never issues — no token, no Let's Encrypt rate limits — and reports "would renew"; it
+still puts the live pair in the tree, so the preview matches production.
+
+The action input `certificate-renewal` (`auto` or `force`) is required when `[[certificates]]` is present and an
+error when it is not. After deploy, the live check `certificates.served` confirms that `<path>.pem` serves the
+deployed certificate (same SHA-256 fingerprint, key matching) with more than `renewWithinDays` left (a pair kept
+after a failed renewal only has to be unexpired); otherwise `rollback-on-failure` applies, as for the other live
+checks.
 
 ## Globs
 

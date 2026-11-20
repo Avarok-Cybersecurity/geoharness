@@ -3,6 +3,7 @@ import { unwrap } from '../core/core.js';
 import { findZoneForHost } from '../io/cloudflare/zones.js';
 import { CloudflareApiError } from '../io/cloudflare/client.js';
 import { probe } from '../io/cloudflare/probe.js';
+import { certificateRenewalProblem } from '../lib/certificates.js';
 import type { OptimizationId } from '../lib/optimizations.js';
 import { featurePermissions, probePath } from '../lib/permissions.js';
 import { primaryHost, type StageContext } from './context.js';
@@ -31,6 +32,8 @@ export async function preflight(ctx: StageContext): Promise<void> {
   if (!inputs.domains.includes(host)) throw new Error(`site.origin host ${host} is not listed in the domains input`);
   const missingEnv = config.env.filter((name) => io.env.get(name) === undefined);
   if (missingEnv.length > 0) throw new Error(`geoharness.toml env lists names that are not set: ${missingEnv.join(', ')}`);
+  const renewalProblem = certificateRenewalProblem(config.certificates.length, inputs.certificateRenewal);
+  if (renewalProblem !== undefined) throw new Error(renewalProblem);
   if (!inputs.deploy) {
     ctx.state.dryRun = true;
     io.log.info('deploy: false — dry run: no Cloudflare API call, no deploy, no zone change');
@@ -70,6 +73,7 @@ export async function preflight(ctx: StageContext): Promise<void> {
     io.log.info(`permission probe ${id}: ${result.ok ? 'ok' : 'DENIED'}`);
     if (!result.ok) for (const g of f.groups) missing.set(`${g.name} (${g.scope})`, id);
   }
+  for (const [group, feature] of await certificateProbes(ctx, config.certificates.map((c) => c.domain))) missing.set(group, feature);
   if (missing.size > 0) {
     const lines = [...missing].map(([group, feature]) => `  - ${group} — needed for ${feature}`);
     throw new Error(`The Cloudflare API token lacks permission groups:\n${lines.join('\n')}\n` +
@@ -80,4 +84,21 @@ export async function preflight(ctx: StageContext): Promise<void> {
     io.log.warn('No zone access: the domains\' DNS records cannot be checked; a host that still has its own A/AAAA/CNAME records fails the deploy with Cloudflare error 100117.');
   }
   ctx.state.access = { zone, negotiation, optimizations, takeover };
+}
+
+/**
+ * Renewal writes the DNS-01 TXT record in the zone of each certificate's domain, which need not be the site's
+ * zone: probe Zone Read and DNS Write there. Run on every deploy, not only when a renewal is due, so a token that
+ * lost the zone fails now rather than on the day the certificate must be renewed.
+ */
+async function certificateProbes(ctx: StageContext, domains: string[]): Promise<[string, string][]> {
+  const f = featurePermissions('certificates');
+  const missing: [string, string][] = [];
+  for (const domain of new Set(domains)) {
+    const zone = await findZone(ctx, domain);
+    const result = zone === undefined ? { ok: false } : await probe(ctx.cf, probePath(f.probe, { zone_id: zone.id }));
+    ctx.io.log.info(`permission probe certificates (${domain}): ${result.ok ? 'ok' : zone === undefined ? 'DENIED (no zone found)' : 'DENIED'}`);
+    if (!result.ok) for (const g of f.groups) missing.push([`${g.name} (${g.scope}) on the zone of ${domain}`, 'certificates']);
+  }
+  return missing;
 }

@@ -11,7 +11,11 @@ export type CoreError = { code: string, message: string,
  */
 path?: string, };
 
-export type SiteConfig = { site: Site, identity: Identity, contentSignal: ContentSignal, bots: Array<BotPolicy>, content: Content, llms: Llms, env: Array<string>, headers: Headers, prerender?: Prerender, analytics?: Analytics, };
+export type SiteConfig = { site: Site, identity: Identity, contentSignal: ContentSignal, bots: Array<BotPolicy>, content: Content, llms: Llms, env: Array<string>, headers: Headers, prerender?: Prerender, analytics?: Analytics, 
+/**
+ * Absent: the site serves no certificate the host renews.
+ */
+certificates: Array<Certificate>, };
 
 export type Site = { 
 /**
@@ -83,6 +87,28 @@ export type Analytics = {
  * CSP so the beacon Cloudflare injects can load and report.
  */
 cloudflareWebAnalytics: boolean, };
+
+export type Certificate = { 
+/**
+ * The one DNS name the certificate is for (its only SAN).
+ */
+domain: string, 
+/**
+ * Output-relative path without extension: served as `<path>.pem` and `<path>.key`.
+ */
+path: string, 
+/**
+ * Renew when `notAfter - now <= renewWithinDays` days.
+ */
+renewWithinDays: number, keyType: KeyType, acmeDirectory: AcmeDirectory, 
+/**
+ * ACME account contact.
+ */
+acmeEmail: string, };
+
+export type KeyType = "ec-256" | "ec-384" | "rsa-2048" | "rsa-3072" | "rsa-4096";
+
+export type AcmeDirectory = "production" | "staging";
 
 export type SiteInput = { config: SiteConfig, 
 /**

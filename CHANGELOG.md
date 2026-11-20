@@ -7,6 +7,17 @@ All notable changes to GeoHarness are documented here. The format follows
 
 ### Added
 
+- Certificate renewal: `[[certificates]]` in geoharness.toml names a TLS pair the site serves as `<path>.pem` and
+  `<path>.key` (`domain`, `path`, `renewWithinDays`, `keyType`, `acmeDirectory`, `acmeEmail`, all required). A new
+  `certificates` stage, between build and process, keeps the live pair byte for byte while it has more than
+  `renewWithinDays` left, its one SAN is `domain` and its key matches; otherwise it renews with a pinned lego
+  (4.35.2, sha256-checked) through Cloudflare DNS-01, the token passed only as lego's `CF_DNS_API_TOKEN`. A failed
+  renewal while the live certificate is still valid warns and ships the live pair; it fails the run only when the
+  live pair is expired, missing or unusable. Dry runs never issue. The new input `certificate-renewal` (`auto` or
+  `force`, for a hand-started run) is required exactly when `[[certificates]]` is present. Preflight probes Zone Read
+  and DNS Write on each certificate's zone (feature `certificates`), and after deploy the live check
+  `certificates.served` compares the served certificate's SHA-256 fingerprint with the deployed one, with
+  `rollback-on-failure` applying. A site without `[[certificates]]` is unaffected.
 - HTTP `Link` headers in `_headers`, as the head tags already promised: every page declares its markdown twin
   (`rel="alternate"; type="text/markdown"`) and llms.txt (`rel="describedby"`), every twin its page
   (`rel="canonical"`). Directory-style sites use two generic `:splat` rules whatever their size (exact rules where a

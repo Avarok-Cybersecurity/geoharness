@@ -3,7 +3,7 @@
 // docs/architecture/contract.md (twin paths, tagged rewrite rules, build meta, IndexNow key file) with
 // trivial content. The real wasm runs in core-contract.test.ts and real-core-run.test.ts.
 import type { Core } from '../../src/core/core.js';
-import type { AuditReport, LiveObservation, OutFile, SiteConfig } from '../../src/core/types-index.js';
+import type { AuditReport, Certificate, LiveObservation, OutFile, SiteConfig } from '../../src/core/types-index.js';
 
 export function sampleConfig(origin: string): SiteConfig {
   return {
@@ -15,13 +15,15 @@ export function sampleConfig(origin: string): SiteConfig {
     llms: { summary: 'Fixture site', sections: [{ title: 'Docs', routes: ['/about/'] }] },
     env: [],
     headers: { immutable: [] },
+    certificates: [],
   };
 }
 
 export const twinFile = (file: string): string => file.replace(/\.html$/, '.md');
 export const FAKE_INDEXNOW_KEY = '0123456789abcdef0123456789abcdef';
 
-export interface FakeCoreOptions { score: number; blockingFails: boolean }
+/** certificates: what parseConfig returns as [[certificates]] (absent: none, like a config without the table). */
+export interface FakeCoreOptions { score: number; blockingFails: boolean; certificates?: Certificate[] }
 
 export function fakeCore(opts: FakeCoreOptions): Core & { calls: string[] } {
   const calls: string[] = [];
@@ -43,7 +45,7 @@ export function fakeCore(opts: FakeCoreOptions): Core & { calls: string[] } {
       const origin = /origin\s*=\s*"([^"]+)"/.exec(toml)?.[1];
       return origin === undefined
         ? { ok: false, errors: [{ code: 'config.missing', message: 'site.origin is required', path: 'site.origin' }] }
-        : { ok: true, value: sampleConfig(origin) };
+        : { ok: true, value: { ...sampleConfig(origin), certificates: opts.certificates ?? [] } };
     },
     processSite(input) {
       calls.push('processSite');

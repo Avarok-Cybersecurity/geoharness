@@ -6,6 +6,8 @@ import type { Inputs } from '../inputs.js';
 import type { CfClient } from '../io/cloudflare/client.js';
 import type { Zone } from '../io/cloudflare/zones.js';
 import type { HostIO } from '../io/types.js';
+import type { CertificateOutcome } from '../lib/certificates.js';
+import type { LegoSource } from '../lib/lego.js';
 import type { LighthouseFailure, LighthouseMedian } from '../lib/lighthouse-report.js';
 import type { OptimizationId } from '../lib/optimizations.js';
 
@@ -34,6 +36,8 @@ export interface RunState {
   };
   adapterId?: AdapterId;
   build?: BuildResult;
+  /** Set by the certificates stage when geoharness.toml has [[certificates]]: one outcome per entry. */
+  certificates?: CertificateOutcome[];
   processed?: {
     pages: PageSummary[];
     /** Routes `content.exclude` passed through: in the output, not processed. */
@@ -66,6 +70,8 @@ export interface StageContext {
   state: RunState;
   /** Absolute path of edge/negotiate.mjs shipped with the action. */
   negotiateModule: string;
+  /** The pinned lego for this platform; the certificates stage downloads it only to renew. */
+  lego: LegoSource;
 }
 
 export type Stage = (ctx: StageContext) => Promise<void>;

@@ -18,5 +18,5 @@
     "isolatedModules": true,
     "resolveJsonModule": true
   },
-  "include": ["host/src", "host/test", "edge", "vitest.config.ts", "eslint.config.mjs"]
+  "include": ["host/src", "host/test", "host/e2e", "edge", "vitest.config.ts", "eslint.config.mjs"]
 }
