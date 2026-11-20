@@ -54,7 +54,7 @@
 <tbody>
 <tr><td><code>cloudflare-api-token</code></td><td>no</td><td>—</td><td>Cloudflare API token. Permission groups per feature are listed in cloudflare-permissions.json. Required when deploy is true.</td></tr>
 <tr><td><code>cloudflare-account-id</code></td><td>no</td><td>—</td><td>Cloudflare account ID (32 hex characters). Required when deploy is true.</td></tr>
-<tr><td><code>site-path</code></td><td>yes</td><td>—</td><td>Directory of the site inside the repository; it must contain geoharness.toml.</td></tr>
+<tr><td><code>site-path</code></td><td>yes</td><td>—</td><td>Directory of the site inside the repository; it must contain geoharness.toml. With content.sources set, check the repository out with fetch-depth 0 (a shallow clone is refused).</td></tr>
 <tr><td><code>adapter</code></td><td>no</td><td><code>auto</code></td><td>Build adapter: auto (detect), static, command, npm, sveltekit-static, python, make, vite-prerender, worker-assets.</td></tr>
 <tr><td><code>build-command</code></td><td>no</td><td>—</td><td>Build command, run without a shell (quotes group words; pipes, redirects, ; &amp; $ are rejected — use a script).</td></tr>
 <tr><td><code>output-dir</code></td><td>no</td><td>—</td><td>Build output directory relative to site-path. Required by static, command, python and make.</td></tr>

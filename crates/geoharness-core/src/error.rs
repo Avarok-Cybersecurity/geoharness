@@ -41,6 +41,8 @@ pub enum Error {
     Html(String),
     #[error("robots.txt conflict: {0}")]
     RobotsConflict(String),
+    #[error("_headers conflict: {0}")]
+    HeadersConflict(String),
     #[error("_headers has too many rules: {0}")]
     HeadersTooManyRules(String),
 }
@@ -60,6 +62,7 @@ impl Error {
             Self::EnvUndeclared(_) => "env.undeclared",
             Self::Html(_) => "html.rewrite",
             Self::RobotsConflict(_) => "robots.conflict",
+            Self::HeadersConflict(_) => "headers.conflict",
             Self::HeadersTooManyRules(_) => "headers.too_many_rules",
         }
     }

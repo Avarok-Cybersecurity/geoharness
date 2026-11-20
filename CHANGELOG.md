@@ -35,6 +35,11 @@ All notable changes to GeoHarness are documented here. The format follows
 
 ### Fixed
 
+- `[content] sources` in a shallow clone (`actions/checkout`'s default `fetch-depth: 1`) dated every page by the tip
+  commit, silently. GeoHarness now refuses a shallow checkout when `sources` is set and says to use `fetch-depth: 0`;
+  the Quick start workflow sets it (#8).
+- A site `_headers` rule that already sets a different `Content-Signal` got GeoHarness's as well, so responses
+  carried two conflicting signals. That is now the error `headers.conflict`; an identical value is fine.
 - Rewrite rules for every domain, not only the host of `site.origin`: `www.` and other listed hosts answered
   `Accept: text/markdown` with HTML. The zstd Compression Rule covers every domain too. Before deploy, the zone's
   URL Rewrite budget (10 on Free, 25 Pro, 50 Business, 300 Enterprise) is checked against GeoHarness's 3 rules per

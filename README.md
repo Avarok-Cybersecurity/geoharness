@@ -83,6 +83,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # lastmod is a git date; a shallow clone (the default depth 1) would date every page by the tip commit,
+          # so GeoHarness refuses one when content.sources is set.
+          fetch-depth: 0
       - uses: Avarok-Cybersecurity/geoharness@v1
         with:
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -130,7 +134,7 @@ Composite actions do not enforce `required`, so GeoHarness validates every input
 |---|---|---|---|
 | `cloudflare-api-token` | no | — | Cloudflare API token. Permission groups per feature are listed in cloudflare-permissions.json. Required when deploy is true. |
 | `cloudflare-account-id` | no | — | Cloudflare account ID (32 hex characters). Required when deploy is true. |
-| `site-path` | yes | — | Directory of the site inside the repository; it must contain geoharness.toml. |
+| `site-path` | yes | — | Directory of the site inside the repository; it must contain geoharness.toml. With content.sources set, check the repository out with fetch-depth 0 (a shallow clone is refused). |
 | `adapter` | no | `auto` | Build adapter: auto (detect), static, command, npm, sveltekit-static, python, make, vite-prerender, worker-assets. |
 | `build-command` | no | — | Build command, run without a shell (quotes group words; pipes, redirects, ; & $ are rejected — use a script). |
 | `output-dir` | no | — | Build output directory relative to site-path. Required by static, command, python and make. |

@@ -85,21 +85,28 @@ impl Rule {
     }
 }
 
-/// The site-wide `GeoHarness` rules.
-fn rules(config: &SiteConfig) -> Vec<Rule> {
+/// The site-wide `GeoHarness` rules for `site` (the site's own text).
+/// Cloudflare sends the headers of every matching rule, so a site rule with a
+/// different `Content-Signal` would put two conflicting signals on its URLs
+/// (`/*` matches them all): an error. The same value on the site's `/*` rule
+/// is not written a second time.
+fn rules(config: &SiteConfig, site: &str) -> Result<Vec<Rule>, Error> {
+    let signal = content_signal_value(config.content_signal);
+    let site_signals = values(site, "content-signal");
+    if let Some((pattern, value)) = site_signals.iter().find(|(_, v)| *v != signal) {
+        return Err(Error::HeadersConflict(format!(
+            "site rule {pattern} sets Content-Signal: {value}, but contentSignal is {signal} and GeoHarness \
+             sends it on /*; remove the site's header or make contentSignal match it"
+        )));
+    }
     // Every HTML URL can also answer with markdown (Accept negotiation), so
     // every response must vary on Accept for downstream caches.
+    let mut site_wide = vec!["Vary: Accept".to_owned()];
+    if !site_signals.iter().any(|(p, _)| *p == "/*") {
+        site_wide.push(format!("Content-Signal: {signal}"));
+    }
     let mut out = vec![
-        Rule::new(
-            "/*",
-            vec![
-                "Vary: Accept".to_owned(),
-                format!(
-                    "Content-Signal: {}",
-                    content_signal_value(config.content_signal)
-                ),
-            ],
-        ),
+        Rule::new("/*", site_wide),
         Rule::new(
             "/*.md",
             vec!["Content-Type: text/markdown; charset=utf-8".to_owned()],
@@ -111,7 +118,7 @@ fn rules(config: &SiteConfig) -> Vec<Rule> {
             vec!["Cache-Control: public, max-age=31536000, immutable".to_owned()],
         ));
     }
-    out
+    Ok(out)
 }
 
 /// Writes `headers` into the first site rule with `pattern`; false if none.
@@ -180,7 +187,7 @@ pub fn merge_with(
     edit_site: impl FnOnce(String) -> String,
 ) -> Result<Merged, Error> {
     let site = edit_site(strip_block(existing.unwrap_or("")));
-    let required = rules(config);
+    let required = rules(config, &site)?;
     let all: Vec<Rule> = required.iter().chain(optional).cloned().collect();
     let out = merge_site(&site, &all);
     if count_rules(&out) <= MAX_RULES {
