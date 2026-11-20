@@ -15,4 +15,9 @@ export const nodeHttp: Http = {
     const body = req.method === 'HEAD' ? '' : await res.text();
     return { status: res.status, headers, body };
   },
+  async download(url, timeoutMs) {
+    const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok) throw new Error(`GET ${url}: HTTP ${res.status}`);
+    return new Uint8Array(await res.arrayBuffer());
+  },
 };

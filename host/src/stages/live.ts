@@ -29,15 +29,17 @@ export async function observe(io: HostIO, req: LiveRequest): Promise<LiveObserva
     bodyPrefix: res.body.slice(0, BODY_PREFIX_CHARS), bodySuffix: res.body.slice(-BODY_PREFIX_CHARS) };
 }
 
-async function requestWithRetry(io: HostIO, req: LiveRequest): Promise<HttpResponse> {
+function requestWithRetry(io: HostIO, req: LiveRequest): Promise<HttpResponse> {
+  return getWithRetry(io, req.url, { 'user-agent': req.userAgent, accept: req.accept }, `${req.userAgent}, Accept: ${req.accept}`);
+}
+
+/** GET without following redirects; a thrown request is retried LIVE_ATTEMPTS times in all. */
+export async function getWithRetry(io: HostIO, url: string, headers: Record<string, string>, label: string): Promise<HttpResponse> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      return await io.http.request({
-        method: 'GET', url: req.url, headers: { 'user-agent': req.userAgent, accept: req.accept },
-        timeoutMs: LIVE_TIMEOUT_MS, redirect: 'manual',
-      });
+      return await io.http.request({ method: 'GET', url, headers, timeoutMs: LIVE_TIMEOUT_MS, redirect: 'manual' });
     } catch (e) {
-      const what = `GET ${req.url} (${req.userAgent}, Accept: ${req.accept}): ${describeError(e)}`;
+      const what = `GET ${url} (${label}): ${describeError(e)}`;
       if (attempt >= LIVE_ATTEMPTS) throw new Error(`${what} (${attempt} attempts)`, { cause: e });
       io.log.warn(`attempt ${attempt} of ${LIVE_ATTEMPTS} failed, retrying in ${LIVE_RETRY_DELAY_MS / 1000}s: ${what}`);
       await io.clock.sleep(LIVE_RETRY_DELAY_MS);

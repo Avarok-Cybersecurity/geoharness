@@ -58,6 +58,8 @@ export interface SiteWorld {
   localDir: string | undefined;
   /** Extra HTML appended before </body> by "the edge" (e.g. an injected beacon). */
   injectHtml: string;
+  /** Release archives by URL (the pinned lego); any other download fails. */
+  downloads: Map<string, Uint8Array>;
 }
 
 async function serveDir(dir: string, url: URL, md: boolean, status: number): Promise<HttpResponse> {
@@ -71,7 +73,7 @@ async function serveDir(dir: string, url: URL, md: boolean, status: number): Pro
 
 export function world(cf: FakeCf, host: string): SiteWorld {
   const w: SiteWorld = {
-    indexnow: [], staleLoads: 0, outputDir: undefined, liveStatusFor: () => 200, localDir: undefined, injectHtml: '',
+    indexnow: [], staleLoads: 0, outputDir: undefined, liveStatusFor: () => 200, localDir: undefined, injectHtml: '', downloads: new Map(),
     http: {
       async request(req) {
         if (req.url.startsWith(cf.baseUrl)) return nodeHttp.request(req);
@@ -90,6 +92,10 @@ export function world(cf: FakeCf, host: string): SiteWorld {
         }
         if (!md) res.body = res.body.replace('</body>', `${w.injectHtml}</body>`);
         return res;
+      },
+      download(url) {
+        const bytes = w.downloads.get(url);
+        return bytes === undefined ? Promise.reject(new Error(`GET ${url}: HTTP 404`)) : Promise.resolve(bytes);
       },
     },
   };

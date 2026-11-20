@@ -31,6 +31,11 @@
       "groups": [{ "name": "Zone Transform Rules Write", "scope": "zone" }],
       "probe": "/zones/{zone_id}/rulesets"
     },
+    "certificates": {
+      "description": "Renew [[certificates]] with lego: DNS-01 TXT records in the zone of each certificate's domain",
+      "groups": [{ "name": "Zone Read", "scope": "zone" }, { "name": "DNS Write", "scope": "zone" }],
+      "probe": "/zones/{zone_id}/dns_records"
+    },
     "email_obfuscation": {
       "description": "Turn Email Obfuscation off (it rewrites HTML that agents and twins read)",
       "groups": [{ "name": "Zone Settings Write", "scope": "zone" }],

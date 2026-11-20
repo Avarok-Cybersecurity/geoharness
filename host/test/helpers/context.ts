@@ -14,12 +14,14 @@ export function makeInputs(over: Partial<Inputs>): Inputs {
     apiToken: 'test-token', accountId: ACCOUNT, workspace: '/w', sitePath: '/w/site', adapter: 'auto',
     buildCommand: undefined, outputDir: undefined, target: 'workers', projectName: 'geo-site',
     domains: ['geo.example.com'], lighthouse: false, lighthouseMaxUrls: undefined, geoMinScore: 80,
-    optimizations: new Set(OPTIMIZATION_IDS), deploy: true, rollbackOnFailure: true, takeoverDns: undefined, buildId: SHA, stateDir: '/tmp/unused',
+    optimizations: new Set(OPTIMIZATION_IDS), deploy: true, rollbackOnFailure: true, takeoverDns: undefined, certificateRenewal: undefined, buildId: SHA, stateDir: '/tmp/unused',
     summaryFile: '/tmp/unused/summary.md', outputFile: '/tmp/unused/output.txt', ...over,
   };
 }
 
 export function makeContext(o: { io: HostIO; core: Core; inputs: Inputs; cfBaseUrl: string; state: RunState }): StageContext {
   const cf = new CfClient({ http: o.io.http, token: o.inputs.apiToken, baseUrl: o.cfBaseUrl, timeoutMs: 5000 });
-  return { io: o.io, core: o.core, inputs: o.inputs, cf, state: o.state, negotiateModule: '/action/edge/negotiate.mjs' };
+  // No lego unless a test supplies one (with the sha256 of its stand-in archive): nothing may download it by accident.
+  const lego = { kind: 'unsupported', reason: 'no lego in this test' } as const;
+  return { io: o.io, core: o.core, inputs: o.inputs, cf, state: o.state, negotiateModule: '/action/edge/negotiate.mjs', lego };
 }

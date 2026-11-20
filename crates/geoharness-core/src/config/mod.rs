@@ -1,8 +1,11 @@
 //! `SiteConfig` (contract §1). Field docs and defaults are mirrored in
 //! `docs/config.md`; a key that has no `#[serde(default)]` here is required.
 
+mod certificates;
 mod parse;
 mod validate;
+
+pub use certificates::{AcmeDirectory, Certificate, KeyType};
 
 pub use parse::parse_config;
 
@@ -30,6 +33,9 @@ pub struct SiteConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub analytics: Option<Analytics>,
+    /// Absent: the site serves no certificate the host renews.
+    #[serde(default)]
+    pub certificates: Vec<Certificate>,
 }
 
 /// Third-party analytics the site opts into. Present only when the site

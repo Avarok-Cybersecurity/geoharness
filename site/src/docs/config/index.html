@@ -73,7 +73,49 @@
 <tr><td><code>prerender.routes</code></td><td>string[]</td><td>yes, when <code>[prerender]</code> is present</td><td>—</td><td>literal absolute routes (no globs, query or fragment); read by the host's vite-prerender adapter, validated by the core</td></tr>
 <tr><td><code>analytics</code></td><td>table</td><td>no</td><td>absent (most sites state no analytics; absent behaves as <code>cloudflareWebAnalytics = false</code>, which never loosens the site's CSP)</td><td></td></tr>
 <tr><td><code>analytics.cloudflareWebAnalytics</code></td><td>bool</td><td>yes, when <code>[analytics]</code> is present</td><td>— (a policy choice; never defaulted)</td><td>true: every <code>Content-Security-Policy</code> line of the site's <code>_headers</code> admits <code>https://static.cloudflareinsights.com</code> in <code>script-src</code> (and <code>script-src-elem</code> when set) and <code>'self'</code> plus <code>https://cloudflareinsights.com</code> in <code>connect-src</code>; a missing directive is created from its <code>default-src</code> fallback, so nothing else changes. Reported as the <code>headers.csp_extended</code> warning. false: the live audit fails (<code>index.live_beacon</code>) if Cloudflare injects the beacon anyway</td></tr>
+<tr><td><code>certificates</code></td><td>array of tables</td><td>no</td><td><code>[]</code> (absent: the site serves no certificate GeoHarness renews)</td><td>see <a href="#certificates">Certificates</a>; each <code>path</code> at most once</td></tr>
+<tr><td><code>certificates[].domain</code></td><td>string</td><td>yes</td><td>—</td><td>the certificate's one name: a lower-case host name, two or more labels, no wildcard; its zone must be on the Cloudflare account (DNS-01)</td></tr>
+<tr><td><code>certificates[].path</code></td><td>string</td><td>yes</td><td>—</td><td>output-relative path without extension, served as <code>&lt;path&gt;.pem</code> and <code>&lt;path&gt;.key</code>: <code>/</code>-separated segments of <code>[A-Za-z0-9._-]</code>, no leading or trailing <code>/</code>, no <code>.</code> or <code>..</code> segment</td></tr>
+<tr><td><code>certificates[].renewWithinDays</code></td><td>integer</td><td>yes</td><td>—</td><td>1–89: renew when <code>notAfter − now ≤ renewWithinDays</code> days (Let's Encrypt certificates last 90)</td></tr>
+<tr><td><code>certificates[].keyType</code></td><td><code>&quot;ec-256&quot;</code> | <code>&quot;ec-384&quot;</code> | <code>&quot;rsa-2048&quot;</code> | <code>&quot;rsa-3072&quot;</code> | <code>&quot;rsa-4096&quot;</code></td><td>yes</td><td>—</td><td></td></tr>
+<tr><td><code>certificates[].acmeDirectory</code></td><td><code>&quot;production&quot;</code> | <code>&quot;staging&quot;</code></td><td>yes</td><td>—</td><td>Let's Encrypt production, or staging (untrusted certificates, for tests)</td></tr>
+<tr><td><code>certificates[].acmeEmail</code></td><td>string</td><td>yes</td><td>—</td><td>one plain address; the ACME account contact</td></tr>
 </tbody></table></div>
+<h3 id="config-certificates">Certificates</h3>
+<p>A site can serve a TLS certificate and its private key as files — for example a certificate for a name that</p>
+<p>resolves to <code>127.0.0.1</code>, which a local agent downloads to accept <code>wss://</code> from an HTTPS page. GeoHarness keeps each</p>
+<p><code>[[certificates]]</code> pair renewed:</p>
+<p>```toml</p>
+<p>[[certificates]]</p>
+<p>domain = &quot;local.example.com&quot;</p>
+<p>path = &quot;agent/loopback&quot;            # served as /agent/loopback.pem and /agent/loopback.key</p>
+<p>renewWithinDays = 30</p>
+<p>keyType = &quot;ec-256&quot;</p>
+<p>acmeDirectory = &quot;production&quot;</p>
+<p>acmeEmail = &quot;security@example.com&quot;</p>
+<p>```</p>
+<p>The <code>certificates</code> stage runs after <code>build</code> and before <code>process</code>, so the pair is part of the tree that is audited,</p>
+<p>Lighthouse-tested and deployed. The stage owns <code>&lt;path&gt;.pem</code> and <code>&lt;path&gt;.key</code>: a build that produces either is an</p>
+<p>error. For each entry it fetches the pair the site serves now (<code>&lt;origin&gt;/&lt;path&gt;.pem</code> and <code>.key</code>) and:</p>
+<p>- <strong>keeps</strong> it, byte for byte, when the certificate is for <code>domain</code> (its only SAN), the key matches it, and more than</p>
+<p><code>renewWithinDays</code> days are left;</p>
+<p>- <strong>renews</strong> it otherwise — inside the window, expired, missing (404), unparsable, for another name, with a key that</p>
+<p>does not match, or every time with <code>certificate-renewal: force</code>. Renewal runs the pinned</p>
+<p><a href="https://github.com/go-acme/lego">lego</a> (its sha256 is checked before it runs) with DNS-01 through Cloudflare:</p>
+<p>the API token reaches lego only as the environment variable <code>CF_DNS_API_TOKEN</code>, never on its command line, and</p>
+<p>lego's account, binary and the new key live in a directory under <code>RUNNER_TEMP</code> that is deleted afterwards. The</p>
+<p>token needs Zone Read and DNS Write on the zone of <code>domain</code> (feature <code>certificates</code>, probed in preflight).</p>
+<p>A renewal that fails while the live certificate is still valid is a <strong>warning</strong>: the live pair ships, so a renewal</p>
+<p>failure never takes a working site down; the job summary says &quot;renewal failed, kept old&quot; and the next run tries</p>
+<p>again. It fails the run only when the live pair is expired, missing or unusable. Any HTTP status other than 200</p>
+<p>or 404 for the live pair stops the run rather than renewing.</p>
+<p>A dry run (<code>deploy: false</code>) never issues — no token, no Let's Encrypt rate limits — and reports &quot;would renew&quot;; it</p>
+<p>still puts the live pair in the tree, so the preview matches production.</p>
+<p>The action input <code>certificate-renewal</code> (<code>auto</code> or <code>force</code>) is required when <code>[[certificates]]</code> is present and an</p>
+<p>error when it is not. After deploy, the live check <code>certificates.served</code> confirms that <code>&lt;path&gt;.pem</code> serves the</p>
+<p>deployed certificate (same SHA-256 fingerprint, key matching) with more than <code>renewWithinDays</code> left (a pair kept</p>
+<p>after a failed renewal only has to be unexpired); otherwise <code>rollback-on-failure</code> applies, as for the other live</p>
+<p>checks.</p>
 <h3 id="config-globs">Globs</h3>
 <p><code>content.exclude</code> and <code>llms.sections[].routes</code> are matched against page routes: <code>*</code> matches within one path segment, <code>**</code> across segments, everything else is literal (<code>/blog/**</code>, <code>/docs/*/</code>).</p>
 <p><code>headers.immutable</code> entries are written verbatim as <code>_headers</code> URL patterns, so <code>*</code> there is Cloudflare's splat, which crosses <code>/</code>.</p>

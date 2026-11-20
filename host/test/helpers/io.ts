@@ -49,4 +49,5 @@ export async function copyFixture(name: string): Promise<string> {
 
 export const noHttp: Http = {
   request: (req: HttpRequest): Promise<HttpResponse> => Promise.reject(new Error(`unexpected HTTP ${req.method} ${req.url}`)),
+  download: (url: string): Promise<Uint8Array> => Promise.reject(new Error(`unexpected download ${url}`)),
 };

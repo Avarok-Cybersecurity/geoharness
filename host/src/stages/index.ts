@@ -1,5 +1,6 @@
 import { auditStage } from './audit.js';
 import { build } from './build.js';
+import { certificatesStage } from './certificates.js';
 import type { Stage, StageContext } from './context.js';
 import { deployStage } from './deploy.js';
 import { indexnowStage } from './indexnow.js';
@@ -12,7 +13,7 @@ import { verifyStage } from './verify.js';
 import { zoneStage } from './zone.js';
 
 export const STAGES = {
-  preflight, build, process: processStage, audit: auditStage, lighthouse: lighthouseStage,
+  preflight, build, certificates: certificatesStage, process: processStage, audit: auditStage, lighthouse: lighthouseStage,
   deploy: deployStage, zone: zoneStage, verify: verifyStage, indexnow: indexnowStage, summary: summaryStage,
 } as const satisfies Record<string, Stage>;
 export type StageName = keyof typeof STAGES;

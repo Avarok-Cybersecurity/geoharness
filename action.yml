@@ -74,6 +74,13 @@ inputs:
       host as a Worker Custom Domain, host by host (zero downtime); then remove the host from the old Pages project.
       false: never touch them; do the move by hand. Not needed when no domain has such records.
     required: false
+  certificate-renewal:
+    description: >-
+      Required when geoharness.toml has [[certificates]], an error otherwise; no default. auto: renew a certificate
+      whose notAfter is within renewWithinDays (or that is missing, expired or unusable); force: renew every one now.
+      Map a workflow_dispatch boolean input to it (force when set, auto otherwise; see the README). Renewal runs only
+      when deploy is true; a dry run reports "would renew" and ships the live pair.
+    required: false
   rag:
     description: Coming in v1.1 (RAG index export). Not implemented yet; setting it to true fails the run.
     required: false
@@ -119,4 +126,5 @@ runs:
         INPUT_DEPLOY: ${{ inputs.deploy }}
         INPUT_ROLLBACK_ON_FAILURE: ${{ inputs.rollback-on-failure }}
         INPUT_TAKEOVER_DNS: ${{ inputs.takeover-dns }}
+        INPUT_CERTIFICATE_RENEWAL: ${{ inputs.certificate-renewal }}
         INPUT_RAG: ${{ inputs.rag }}

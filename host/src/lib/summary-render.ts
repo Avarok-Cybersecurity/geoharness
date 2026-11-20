@@ -1,4 +1,5 @@
 import type { AuditReport } from '../core/types-index.js';
+import type { CertificateOutcome } from './certificates.js';
 import { LIGHTHOUSE_CATEGORIES } from './lighthouse-rc.js';
 import type { LighthouseState, RunState } from '../stages/context.js';
 
@@ -46,6 +47,18 @@ function lighthouseSection(title: string, lh: LighthouseState): string[] {
   return out;
 }
 
+const CERTIFICATE_ACTIONS: Record<CertificateOutcome['action'], string> = {
+  kept: 'kept', renewed: 'renewed', 'would-renew': 'would renew (dry run)', 'renewal-failed-kept-old': '**renewal failed, kept old**',
+};
+
+function certificatesSection(outcomes: CertificateOutcome[]): string[] {
+  const out = ['### Certificates', '', '| Domain | notAfter | Days left | Action | Detail |', '|---|---|---:|---|---|'];
+  for (const o of outcomes) {
+    out.push(`| ${cell(o.domain)} | ${o.notAfter ?? '—'} | ${o.daysLeft ?? '—'} | ${CERTIFICATE_ACTIONS[o.action]} | ${cell(o.detail)} |`);
+  }
+  return [...out, ''];
+}
+
 /** The GITHUB_STEP_SUMMARY body: whatever the run reached, including after a failure. */
 export function renderSummary(state: RunState, failure: string | undefined): string {
   const out = ['## GeoHarness', ''];
@@ -57,6 +70,7 @@ export function renderSummary(state: RunState, failure: string | undefined): str
   if (state.rollback !== undefined) out.push(`**Rollback:** ${cell(state.rollback.detail)}`, '');
   if (state.liveLighthouse !== undefined) out.push(...lighthouseSection('Lighthouse (live)', state.liveLighthouse));
   if (state.lighthouse !== undefined) out.push(...lighthouseSection('Lighthouse (before deploy, local wrangler)', state.lighthouse));
+  if (state.certificates !== undefined && state.certificates.length > 0) out.push(...certificatesSection(state.certificates));
   const pages = state.processed?.pages;
   if (pages !== undefined) {
     out.push(`### Markdown twins (${pages.length})`, '', '| Route | Twin | Tokens |', '|---|---|---:|');

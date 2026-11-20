@@ -61,6 +61,12 @@ interface SiteConfig {
   headers: { immutable: string[] /* path globs of hashed assets */ };
   prerender?: { routes: string[] };                       // literal routes the host's prerender adapter renders; core only validates
   analytics?: { cloudflareWebAnalytics: boolean };        // explicit opt-in; extends the site's CSP for the beacon
+  certificates: Certificate[];                            // pairs the host renews and serves as <path>.pem/.key; core only validates
+}
+interface Certificate {
+  domain: string; path: string; renewWithinDays: number;  // 1–89
+  keyType: 'ec-256' | 'ec-384' | 'rsa-2048' | 'rsa-3072' | 'rsa-4096';
+  acmeDirectory: 'production' | 'staging'; acmeEmail: string;
 }
 interface BotPolicy { tokens: string[]; allow: string[]; disallow: string[]; group: 'search' | 'user' | 'training' | 'other' }
 ```

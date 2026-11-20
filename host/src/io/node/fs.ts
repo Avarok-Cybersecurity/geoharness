@@ -29,6 +29,10 @@ export const nodeFs: Fs = {
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, contents, 'utf8');
   },
+  async writeBytes(path, contents) {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, contents);
+  },
   appendText: (path, contents) => appendFile(path, contents, 'utf8'),
   async exists(path) {
     try {

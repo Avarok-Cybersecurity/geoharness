@@ -5,6 +5,7 @@ export interface Fs {
   /** undefined when the file does not exist; other errors throw. */
   readTextIfExists(path: string): Promise<string | undefined>;
   writeText(path: string, contents: string): Promise<void>;
+  writeBytes(path: string, contents: Uint8Array): Promise<void>;
   appendText(path: string, contents: string): Promise<void>;
   exists(path: string): Promise<boolean>;
   isDirectory(path: string): Promise<boolean>;
@@ -30,7 +31,11 @@ export interface HttpRequest {
   redirect: 'follow' | 'manual';
 }
 export interface HttpResponse { status: number; headers: Record<string, string>; body: string }
-export interface Http { request(req: HttpRequest): Promise<HttpResponse> }
+export interface Http {
+  request(req: HttpRequest): Promise<HttpResponse>;
+  /** GET following redirects, as raw bytes (release archives); a non-2xx status throws. */
+  download(url: string, timeoutMs: number): Promise<Uint8Array>;
+}
 
 export interface ProcOptions {
   cwd: string;

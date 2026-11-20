@@ -4,10 +4,10 @@
 use super::SiteConfig;
 use crate::error::{CoreError, Error};
 
-struct Report(Vec<CoreError>);
+pub(super) struct Report(Vec<CoreError>);
 
 impl Report {
-    fn check(&mut self, ok: bool, path: &str, message: impl FnOnce() -> String) {
+    pub(super) fn check(&mut self, ok: bool, path: &str, message: impl FnOnce() -> String) {
         if !ok {
             self.0.push(Error::ConfigInvalid(message()).at(path));
         }
@@ -23,6 +23,7 @@ pub fn validate(config: &SiteConfig) -> Result<(), Vec<CoreError>> {
     content(config, &mut r);
     llms(config, &mut r);
     env(config, &mut r);
+    super::certificates::certificates(config, &mut r);
     for (i, g) in config.headers.immutable.iter().enumerate() {
         r.check(is_path_glob(g), &format!("headers.immutable[{i}]"), || {
             format!("{g:?} must start with '/' and be a single line")
@@ -207,7 +208,7 @@ fn is_url(s: &str) -> bool {
 }
 
 /// One plain address: `local@domain.tld`, no spaces, quotes or angle brackets.
-fn is_email(s: &str) -> bool {
+pub(super) fn is_email(s: &str) -> bool {
     let Some((local, domain)) = s.split_once('@') else {
         return false;
     };

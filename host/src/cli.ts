@@ -7,6 +7,7 @@ import { loadWasmCore } from './core/wasm.js';
 import { InputError, readInputs } from './inputs.js';
 import { CfClient } from './io/cloudflare/client.js';
 import { nodeHostIO } from './io/node/index.js';
+import { legoSourceFor } from './lib/lego.js';
 import type { StageContext } from './stages/context.js';
 import { STAGE_ORDER, isStageName, runAll, runStage } from './stages/index.js';
 import { loadState } from './stages/state.js';
@@ -54,7 +55,7 @@ async function main(argv: string[]): Promise<number> {
   const inputs = readInputs(io.env);
   const cf = new CfClient({ http: io.http, token: inputs.apiToken, baseUrl: CLOUDFLARE_API, timeoutMs: CLOUDFLARE_TIMEOUT_MS });
   const state = command === 'run' ? {} : await loadState(io.fs, inputs.stateDir);
-  const ctx: StageContext = { io, core, inputs, cf, state, negotiateModule: NEGOTIATE_MODULE };
+  const ctx: StageContext = { io, core, inputs, cf, state, negotiateModule: NEGOTIATE_MODULE, lego: legoSourceFor(process.platform, process.arch) };
   if (command === 'run') await runAll(ctx);
   else await runStage(ctx, command);
   return 0;

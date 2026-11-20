@@ -1,0 +1,77 @@
+name: certificates-e2e
+
+# The certificates stage against the real world: the pinned lego issues a Let's Encrypt STAGING certificate for
+# local-e2e.geo.avarok.net through Cloudflare DNS-01 (zone avarok.net), then the pair is checked with openssl and
+# the _acme-challenge TXT record must be gone. Staging certificates are untrusted and its rate limits are generous;
+# nothing is deployed. Runs on pull requests that touch the stage or the lego pin, and by hand.
+
+on:
+  pull_request:
+    paths:
+      - "host/src/**/*certificat*"
+      - "host/src/lib/lego.ts"
+      - "host/src/stages/lego.ts"
+      - "host/e2e/**"
+      - ".github/workflows/certificates-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One issuance at a time: two runs would see each other's TXT record.
+concurrency:
+  group: certificates-e2e
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOMAIN: local-e2e.geo.avarok.net
+      ZONE: avarok.net
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Issue a staging certificate with the certificates stage
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx esbuild host/e2e/certificates-e2e.ts --bundle --platform=node --format=esm --target=node22 \
+            --outfile="$RUNNER_TEMP/e2e.mjs" --log-level=warning
+          mkdir -p "$RUNNER_TEMP/out"
+          node "$RUNNER_TEMP/e2e.mjs" "$GITHUB_WORKSPACE/dist/core/geoharness_wasm.js" "$RUNNER_TEMP/out"
+      - name: The pair is for the domain, matches, and comes from Let's Encrypt staging
+        run: |
+          set -euo pipefail
+          pem="$RUNNER_TEMP/out/e2e/certificates-$GITHUB_RUN_ID.pem"
+          key="$RUNNER_TEMP/out/e2e/certificates-$GITHUB_RUN_ID.key"
+          subject=$(openssl x509 -in "$pem" -noout -subject)
+          san=$(openssl x509 -in "$pem" -noout -ext subjectAltName | tail -n +2 | tr -d ' ')
+          issuer=$(openssl x509 -in "$pem" -noout -issuer)
+          echo "$subject"; echo "SAN: $san"; echo "$issuer"
+          [[ "$subject" == *"CN=$DOMAIN"* || "$subject" == "subject=" ]] || { echo "::error::subject is not $DOMAIN"; exit 1; }
+          [ "$san" = "DNS:$DOMAIN" ] || { echo "::error::SAN is $san, not DNS:$DOMAIN"; exit 1; }
+          [[ "$issuer" == *"(STAGING)"* ]] || { echo "::error::issuer is not Let's Encrypt staging"; exit 1; }
+          cert_pub=$(openssl x509 -in "$pem" -noout -pubkey | openssl sha256)
+          key_pub=$(openssl pkey -in "$key" -pubout | openssl sha256)
+          [ "$cert_pub" = "$key_pub" ] || { echo "::error::the key does not match the certificate"; exit 1; }
+          [ "$(grep -c 'BEGIN CERTIFICATE' "$pem")" -ge 2 ] || { echo "::error::the pem has no issuer chain"; exit 1; }
+          rm -f "$key"
+      - name: lego removed its _acme-challenge TXT record
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          api() { curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4$1"; }
+          zone_id=$(api "/zones?name=$ZONE" | jq -er '.result[0].id')
+          left=$(api "/zones/$zone_id/dns_records?type=TXT&name=_acme-challenge.$DOMAIN" | jq -er '.result | length')
+          echo "TXT records left at _acme-challenge.$DOMAIN: $left"
+          [ "$left" = "0" ] || { echo "::error::$left _acme-challenge TXT record(s) remain"; exit 1; }

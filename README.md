@@ -104,6 +104,26 @@ jobs:
           rollback-on-failure: true
 ```
 
+A site with `[[certificates]]` also states `certificate-renewal`. Renewal runs on every deploy (only certificates
+within `renewWithinDays` of expiry are renewed); to renew at will, start the same workflow by hand:
+
+```yaml
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      force-renew:
+        description: Renew every certificate now, whatever its expiry
+        type: boolean
+        default: false
+# … the same job and step as above, with these inputs changed or added:
+          # A hand-started run deploys too (github.event_name is workflow_dispatch, not push).
+          deploy: ${{ github.event_name != 'pull_request' }}
+          certificate-renewal: ${{ inputs.force-renew && 'force' || 'auto' }}
+```
+
 ## How it works
 
 A pure Rust core, compiled to WebAssembly, makes every decision; a TypeScript host performs every I/O and asks the core what to do ([contract](docs/architecture/contract.md)).
@@ -111,7 +131,8 @@ A pure Rust core, compiled to WebAssembly, makes every decision; a TypeScript ho
 ```mermaid
 flowchart LR
   P[preflight<br/>inputs + token probes] --> B[build<br/>adapter, no shell]
-  B --> PR[process<br/>twins, llms.txt, sitemap,<br/>robots, _headers, head tags]
+  B --> C[certificates<br/>keep or renew, lego DNS-01]
+  C --> PR[process<br/>twins, llms.txt, sitemap,<br/>robots, _headers, head tags]
   PR --> A{audit<br/>GEO score}
   A -->|blocking failure| X[stop: nothing deployed]
   A --> L{Lighthouse<br/>100 x 4, median of 3}
@@ -150,6 +171,7 @@ Composite actions do not enforce `required`, so GeoHarness validates every input
 | `deploy` | no | `true` | true deploys, configures the zone, verifies live and pings IndexNow. false is a dry run for pull requests: build, process, GEO audit and Lighthouse only, with no Cloudflare API call. |
 | `rollback-on-failure` | no | — | Required when deploy is true (no default). true: when the post-deploy verification (live GEO audit or the production Lighthouse gate) fails or cannot complete, put production back on the version it served before this deploy (wrangler rollback for workers, the Pages rollback API for pages), then fail. false: fail and leave the new build live. A first deploy has nothing to roll back to and just fails. |
 | `takeover-dns` | no | — | workers target only; no default. When a domain still has its own A, AAAA or CNAME records (e.g. a CNAME to a Pages project), Cloudflare cannot bind it to the Worker (error 100117) and preflight fails before the build, explaining the move. true: after uploading the Worker, GeoHarness deletes those records and at once attaches the host as a Worker Custom Domain, host by host (zero downtime); then remove the host from the old Pages project. false: never touch them; do the move by hand. Not needed when no domain has such records. |
+| `certificate-renewal` | no | — | Required when geoharness.toml has [[certificates]], an error otherwise; no default. auto: renew a certificate whose notAfter is within renewWithinDays (or that is missing, expired or unusable); force: renew every one now. Map a workflow_dispatch boolean input to it (force when set, auto otherwise; see the README). Renewal runs only when deploy is true; a dry run reports "would renew" and ships the live pair. |
 | `rag` | no | `false` | Coming in v1.1 (RAG index export). Not implemented yet; setting it to true fails the run. |
 
 ### Outputs
@@ -170,6 +192,7 @@ The full reference is in [docs/config.md](docs/config.md) and on [geo.avarok.net
 - `[[bots]]` user-agent groups (`search`, `user`, `training`, `other`) with allow/disallow paths.
 - `[content]` the main-content selector, excluded routes and `sources` (route → source files, for the sitemap `lastmod` of built pages); `[llms]` the llms.txt summary and sections.
 - `env` the only environment variables templates may read; `[headers]` immutable asset paths; `[prerender]` routes for SPA prerendering.
+- `[[certificates]]` TLS pairs the site serves as `<path>.pem` / `<path>.key`, renewed with Let's Encrypt (DNS-01 through Cloudflare) when within `renewWithinDays` of expiry; see [Certificates](docs/config.md#certificates).
 - `[analytics]` `cloudflareWebAnalytics`: true extends the site's own CSP in `_headers` so the beacon Cloudflare injects can load and report (the only edit GeoHarness makes to the site's headers); false or absent makes verify fail if Cloudflare injects it anyway.
 
 Unknown keys are errors, and each default is documented with its reason. This repository's own file is [site/geoharness.toml](site/geoharness.toml).
@@ -208,10 +231,10 @@ Preflight probes each enabled feature and fails listing every missing group befo
 | Cloudflare Pages Write | account | `pages-deploy`, `pages-custom-domain` |
 | Workers Scripts Write | account | `workers-deploy` |
 | Bot Management Write | zone | `bot_fight_mode`, `ai_bots_protection` |
-| DNS Write | zone | `workers-custom-domain`, `pages-custom-domain` |
+| DNS Write | zone | `workers-custom-domain`, `pages-custom-domain`, `certificates` |
 | Response Compression Write | zone | `zstd` |
 | Workers Routes Write | zone | `workers-custom-domain` |
-| Zone Read | zone | `zone-read` |
+| Zone Read | zone | `zone-read`, `certificates` |
 | Zone Settings Write | zone | `email_obfuscation`, `rocket_loader`, `early_hints`, `http3`, `brotli`, `smart_tiered_cache` |
 | Zone Transform Rules Write | zone | `rewrite-rules` |
 <!-- /generated:permissions -->
