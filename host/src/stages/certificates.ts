@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import type { Certificate } from '../core/types-index.js';
 import type { HostIO } from '../io/types.js';
 import {
-  daysLeft, inspectPair, liveStillServes, renewalDecision,
+  daysLeft, inspectPair, issuedInsideWindow, liveStillServes, renewalDecision,
   type CertificateOutcome, type LivePair, type PairText, type RenewalMode, type RenewReason,
 } from '../lib/certificates.js';
 import { describeError } from '../lib/errors.js';
@@ -43,14 +43,14 @@ function outcome(cert: Certificate, action: CertificateOutcome['action'], reason
 
 async function renew(ctx: StageContext, cert: Certificate, outputDir: string, live: { pair: PairText | undefined; state: LivePair }, reason: RenewReason): Promise<CertificateOutcome> {
   const nowMs = ctx.io.clock.nowMs();
+  let issued: PairText;
+  let fresh: Extract<LivePair, { usable: true }>;
   try {
-    const issued = await issueWithLego(ctx, cert);
-    const fresh = inspectPair(issued, cert.domain);
-    if (!fresh.usable) throw new Error(`lego returned an unusable pair (${fresh.reason}: ${fresh.detail})`);
-    if (fresh.notAfterMs <= nowMs) throw new Error('lego returned an expired certificate');
-    await writePair(ctx, outputDir, cert.path, issued);
-    ctx.io.log.info(`certificate ${cert.domain}: renewed (${reason}), valid until ${new Date(fresh.notAfterMs).toISOString()}`);
-    return outcome(cert, 'renewed', reason, fresh, nowMs, `renewed (${reason})`);
+    issued = await issueWithLego(ctx, cert);
+    const state = inspectPair(issued, cert.domain);
+    if (!state.usable) throw new Error(`lego returned an unusable pair (${state.reason}: ${state.detail})`);
+    if (state.notAfterMs <= nowMs) throw new Error('lego returned an expired certificate');
+    fresh = state;
   } catch (e) {
     const why = describeError(e);
     if (!liveStillServes(reason) || live.pair === undefined || !live.state.usable) {
@@ -62,6 +62,12 @@ async function renew(ctx: StageContext, cert: Certificate, outputDir: string, li
     await writePair(ctx, outputDir, cert.path, live.pair);
     return outcome(cert, 'renewal-failed-kept-old', reason, live.state, nowMs, `renewal failed: ${why}`);
   }
+  // Outside the try: a configuration error, not a failed renewal to fall back from.
+  const tooShort = issuedInsideWindow(fresh.notAfterMs, nowMs, cert.renewWithinDays);
+  if (tooShort !== undefined) throw new Error(`certificate ${cert.domain}: ${tooShort}`);
+  await writePair(ctx, outputDir, cert.path, issued);
+  ctx.io.log.info(`certificate ${cert.domain}: renewed (${reason}), valid until ${new Date(fresh.notAfterMs).toISOString()}`);
+  return outcome(cert, 'renewed', reason, fresh, nowMs, `renewed (${reason})`);
 }
 
 async function oneCertificate(ctx: StageContext, cert: Certificate, outputDir: string, mode: RenewalMode, origin: string): Promise<CertificateOutcome> {

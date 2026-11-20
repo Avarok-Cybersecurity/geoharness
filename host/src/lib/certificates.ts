@@ -39,6 +39,17 @@ export function daysLeft(notAfterMs: number, nowMs: number): number {
   return Math.floor((notAfterMs - nowMs) / DAY_MS);
 }
 
+/**
+ * A newly issued certificate that is already inside its renewal window: every later run would renew it again
+ * (spending the CA's rate limit) and the post-deploy check would roll the deploy back. That is a configuration
+ * error, reported before anything deploys.
+ */
+export function issuedInsideWindow(notAfterMs: number, nowMs: number, windowDays: number): string | undefined {
+  if (notAfterMs - nowMs > windowDays * DAY_MS) return undefined;
+  return `the CA issued a certificate valid for ${daysLeft(notAfterMs, nowMs)} days, which is inside renewWithinDays `
+    + `(${windowDays}): every run would renew it. Lower renewWithinDays below the CA's certificate lifetime.`;
+}
+
 const PEM_BLOCK = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/;
 
 /** The leaf (first certificate of the chain), its one name, and whether the key is its key. */

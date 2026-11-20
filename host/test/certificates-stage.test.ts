@@ -38,6 +38,14 @@ describe('certificates stage', () => {
     expect(w.ctx.state.certificates).toMatchObject([{ action: 'renewed', reason: 'window', notAfter: new Date(notAfterMs(fresh.pem)).toISOString() }]);
   });
 
+  it('a newly issued certificate already inside the window fails before deploy, writing nothing', async () => {
+    // 45-day certificate issued 30 days into the live one's 60: 15 days left, inside the 30-day window.
+    const short = selfSigned(DOMAIN, 45);
+    const w = await certWorld({ live, nowMs: end - 30 * DAY_MS, deploy: true, mode: 'auto', lego: { issue: short } });
+    await expect(certificatesStage(w.ctx)).rejects.toThrow(/valid for 15 days, which is inside renewWithinDays \(30\)/);
+    expect(await readdir(join(w.outputDir, 'agent')).catch(() => [])).toEqual([]);
+  });
+
   it('force renews a certificate with plenty left', async () => {
     const w = await certWorld({ live, nowMs: end - 59 * DAY_MS, deploy: true, mode: 'force', lego: { issue: fresh } });
     await certificatesStage(w.ctx);

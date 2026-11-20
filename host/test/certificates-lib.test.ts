@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DAY_MS, certificateRenewalProblem, daysLeft, inspectPair, liveStillServes, renewalDecision, servedProblem,
+  DAY_MS, certificateRenewalProblem, daysLeft, inspectPair, issuedInsideWindow, liveStillServes, renewalDecision, servedProblem,
   type LivePair, type RenewReason,
 } from '../src/lib/certificates.js';
 import { selfSigned } from './helpers/certs.js';
@@ -98,5 +98,13 @@ describe('certificate-renewal input against the config', () => {
     expect(certificateRenewalProblem(0, 'auto')).toMatch(/no \[\[certificates\]\]/);
     expect(certificateRenewalProblem(1, 'force')).toBeUndefined();
     expect(certificateRenewalProblem(0, undefined)).toBeUndefined();
+  });
+});
+
+describe('issuedInsideWindow', () => {
+  it('accepts a fresh certificate with more than the window left, and names one with the window or less', () => {
+    const now = 1_800_000_000_000;
+    expect(issuedInsideWindow(now + 30 * DAY_MS + 1, now, 30)).toBeUndefined();
+    expect(issuedInsideWindow(now + 30 * DAY_MS, now, 30)).toMatch(/valid for 30 days, which is inside renewWithinDays \(30\)/);
   });
 });
