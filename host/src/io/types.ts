@@ -17,6 +17,8 @@ export interface Fs {
 export interface Git {
   /** ISO 8601 committer date of the last commit touching path, or undefined if untracked. */
   lastCommitDate(repoDir: string, path: string): Promise<string | undefined>;
+  /** True when repoDir is a shallow clone, where every path's last commit can be the shallow tip. */
+  isShallow(repoDir: string): Promise<boolean>;
 }
 
 export interface HttpRequest {

@@ -41,6 +41,8 @@ pub enum Error {
     Html(String),
     #[error("robots.txt conflict: {0}")]
     RobotsConflict(String),
+    #[error("_headers conflict: {0}")]
+    HeadersConflict(String),
     #[error("_headers has too many rules: {0}")]
     HeadersTooManyRules(String),
 }
@@ -60,6 +62,7 @@ impl Error {
             Self::EnvUndeclared(_) => "env.undeclared",
             Self::Html(_) => "html.rewrite",
             Self::RobotsConflict(_) => "robots.conflict",
+            Self::HeadersConflict(_) => "headers.conflict",
             Self::HeadersTooManyRules(_) => "headers.too_many_rules",
         }
     }
@@ -92,6 +95,7 @@ pub mod warning {
     pub const MIXED_LAYOUT: &str = "rewrite.mixed_layout";
     pub const CSP_EXTENDED: &str = "headers.csp_extended";
     pub const NO_LASTMOD: &str = "page.no_lastmod";
+    pub const LINK_SKIPPED: &str = "headers.link_skipped";
 }
 
 /// Builds a warning `CoreError`.

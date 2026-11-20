@@ -10,4 +10,24 @@
   Content-Signal: search=yes, ai-input=yes, ai-train=no
 /*.md
   Content-Type: text/markdown; charset=utf-8
+/
+  Link: <https://example.com/index.md>; rel="alternate"; type="text/markdown", <https://example.com/llms.txt>; rel="describedby"
+/index.md
+  Link: <https://example.com/>; rel="canonical"
+/guide/
+  Link: <https://example.com/guide/index.md>; rel="alternate"; type="text/markdown", <https://example.com/llms.txt>; rel="describedby"
+/guide/index.md
+  Link: <https://docs.example.org/guide/>; rel="canonical"
+/guide/advanced/
+  Link: <https://example.com/guide/advanced/index.md>; rel="alternate"; type="text/markdown", <https://example.com/llms.txt>; rel="describedby"
+/guide/advanced/index.md
+  Link: <https://example.com/guide/advanced/>; rel="canonical"
+/private/
+  Link: <https://example.com/private/index.md>; rel="alternate"; type="text/markdown", <https://example.com/llms.txt>; rel="describedby"
+/private/index.md
+  Link: <https://example.com/private/>; rel="canonical"
+/pricing/
+  Link: <https://example.com/pricing/index.md>; rel="alternate"; type="text/markdown", <https://example.com/llms.txt>; rel="describedby"
+/pricing/index.md
+  Link: <https://example.com/pricing/>; rel="canonical"
 # END GeoHarness

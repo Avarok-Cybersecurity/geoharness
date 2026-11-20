@@ -12,6 +12,8 @@ Parsed by `parseConfig` (contract §1). Keys are camelCase. **Unknown keys are e
 | `identity.url` | string | yes | — | absolute http(s) URL |
 | `identity.sameAs` | string[] | no | `[]` (no profiles is a valid statement, not an assumption) | absolute http(s) URLs; injected as `rel=me` and JSON-LD `sameAs` |
 | `identity.organization` | table `{ name, url }` | no | absent (a person need not belong to one) | both keys required when present |
+| `identity.logo` | string | no | absent (no logo is declared; GeoHarness never guesses one from the site's files) | absolute `https://` URL; JSON-LD `logo` of the entity node (`google-organization`) |
+| `identity.email` | string | no | absent (no contact is declared; an address is never inferred) | one plain address (`name@example.com`); JSON-LD `email` of the entity node, which the advisory `signals.contact` check reads |
 | `contentSignal.search` | bool | yes | — (a policy choice; never defaulted) | |
 | `contentSignal.aiInput` | bool | yes | — | |
 | `contentSignal.aiTrain` | bool | yes | — | |
@@ -50,7 +52,7 @@ mainSelector = "main"
 sources = { "/" = ["src/pages/index.astro"], "/blog/**" = ["content/blog/**", "src/layouts/Post.astro"] }
 ```
 
-GeoHarness asks git for the newest commit touching each source glob (`git log -1 -- ':(glob)<glob>'`, run in the site directory). A page takes the newest date among the globs of every entry whose route glob matches it, which overrides the adapter's date. A page no entry maps keeps the adapter's date; pages left with none are listed in one `page.no_lastmod` warning and their sitemap entries go without `<lastmod>`. There is deliberately no fallback to "the last commit anywhere in the site": that date moves for every edit, which would claim every page changed and teach crawlers to ignore the field.
+GeoHarness asks git for the newest commit touching each source glob (`git log -1 -- ':(glob)<glob>'`, run in the site directory). A page takes the newest date among the globs of every entry whose route glob matches it, which overrides the adapter's date. The dates need full history: in a shallow clone (`actions/checkout`'s default `fetch-depth: 1`) every glob's newest commit is the tip, so with `sources` set GeoHarness checks `git rev-parse --is-shallow-repository` and stops before processing; check out with `fetch-depth: 0`. A page no entry maps keeps the adapter's date; pages left with none are listed in one `page.no_lastmod` warning and their sitemap entries go without `<lastmod>`. There is deliberately no fallback to "the last commit anywhere in the site": that date moves for every edit, which would claim every page changed and teach crawlers to ignore the field.
 
 ## Templates
 

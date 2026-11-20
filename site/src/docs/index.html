@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Documentation · GeoHarness</title>
-<meta name="description" content="How to use the GeoHarness GitHub Action: every input and output, dry runs for pull requests, and links to configuration, adapters, Cloudflare setup, GEO score and security.">
+<meta name="description" content="How to use the GeoHarness GitHub Action: every input and output, dry runs for pull requests, configuration, adapters, Cloudflare setup and the GEO score.">
 <link rel="canonical" href="https://geo.avarok.net/docs/">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
@@ -54,7 +54,7 @@
 <tbody>
 <tr><td><code>cloudflare-api-token</code></td><td>no</td><td>—</td><td>Cloudflare API token. Permission groups per feature are listed in cloudflare-permissions.json. Required when deploy is true.</td></tr>
 <tr><td><code>cloudflare-account-id</code></td><td>no</td><td>—</td><td>Cloudflare account ID (32 hex characters). Required when deploy is true.</td></tr>
-<tr><td><code>site-path</code></td><td>yes</td><td>—</td><td>Directory of the site inside the repository; it must contain geoharness.toml.</td></tr>
+<tr><td><code>site-path</code></td><td>yes</td><td>—</td><td>Directory of the site inside the repository; it must contain geoharness.toml. With content.sources set, check the repository out with fetch-depth 0 (a shallow clone is refused).</td></tr>
 <tr><td><code>adapter</code></td><td>no</td><td><code>auto</code></td><td>Build adapter: auto (detect), static, command, npm, sveltekit-static, python, make, vite-prerender, worker-assets.</td></tr>
 <tr><td><code>build-command</code></td><td>no</td><td>—</td><td>Build command, run without a shell (quotes group words; pipes, redirects, ; &amp; $ are rejected — use a script).</td></tr>
 <tr><td><code>output-dir</code></td><td>no</td><td>—</td><td>Build output directory relative to site-path. Required by static, command, python and make.</td></tr>
@@ -92,7 +92,8 @@
 </div></main>
 <!-- generated:footer -->
 <footer class="site"><div class="wrap">
-<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net">Avarok Cybersecurity</a>.</p>
+<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net/about/">Avarok Cybersecurity</a>.
+ <a href="mailto:contact@avarok.net">Contact</a> · <a href="https://avarok.net/privacy/">Privacy notice</a> · <a href="https://github.com/Avarok-Cybersecurity/geoharness/security/policy">Security policy</a></p>
 <p>This site is built, audited and deployed by GeoHarness itself. Agents: send <code>Accept: text/markdown</code>, or read <a href="/llms.txt">llms.txt</a>.</p>
 </div></footer>
 <!-- /generated:footer -->

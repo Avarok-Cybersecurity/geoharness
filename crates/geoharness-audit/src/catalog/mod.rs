@@ -2,7 +2,11 @@
 //! severity and the CITATIONS.md ids its finding carries. Blocking checks are
 //! the access/indexability ones backed by grade A/B evidence.
 
-use crate::types::Severity::{self, Advisory, Blocking};
+mod advisory;
+
+pub use advisory::*;
+
+use crate::types::Severity::{self, Blocking};
 
 pub struct Check {
     pub id: &'static str,
@@ -126,67 +130,6 @@ pub const LIVE_FILES: Check = Check {
     severity: Blocking,
     citations: &["cf-content-signals", "llmstxt-spec"],
 };
-pub const LINK_COUNT: Check = Check {
-    id: "extract.link_count",
-    title: "Few links (<20) so the first read covers the page",
-    category: "extractability",
-    severity: Advisory,
-    citations: &["peec-reading-budget-2026"],
-};
-pub const FRONT_LOADED: Check = Check {
-    id: "extract.front_loaded",
-    title: "Main content starts within the first ~5,700 characters",
-    category: "extractability",
-    severity: Advisory,
-    citations: &["peec-reading-budget-2026"],
-};
-pub const ENTITY_EARLY: Check = Check {
-    id: "extract.entity_early",
-    title: "Entity named in the first 30% of the content",
-    category: "extractability",
-    severity: Advisory,
-    citations: &["indig-2026"],
-};
-pub const QUESTION_HEADINGS: Check = Check {
-    id: "extract.question_headings",
-    title: "A heading is phrased as a question",
-    category: "extractability",
-    severity: Advisory,
-    citations: &["what-gets-cited-2026", "sageo-2026"],
-};
-pub const VISIBLE_DATE: Check = Check {
-    id: "extract.visible_date",
-    title: "A date is visible in the content",
-    category: "extractability",
-    severity: Advisory,
-    citations: &["what-gets-cited-2026"],
-};
-pub const TABLES_KEPT: Check = Check {
-    id: "extract.tables_kept",
-    title: "Tables survive into the twin",
-    category: "extractability",
-    severity: Advisory,
-    citations: &["htmlrag-2025"],
-};
-pub const LLMS_TXT: Check = Check {
-    id: "signals.llms_txt",
-    title: "llms.txt is present and well-formed",
-    category: "signals",
-    severity: Advisory,
-    citations: &[
-        "llmstxt-spec",
-        "ahrefs-llmstxt-2026",
-        "seranking-llmstxt-2026",
-    ],
-};
-pub const JSON_LD: Check = Check {
-    id: "signals.json_ld",
-    title: "JSON-LD is present and valid",
-    category: "signals",
-    severity: Advisory,
-    citations: &["ahrefs-schema-2026", "google-ai-guide-2026"],
-};
-
 /// Every check, for the definition and citation tests.
 pub const CHECKS: &[&Check] = &[
     &SPA_SHELL,
@@ -209,6 +152,13 @@ pub const CHECKS: &[&Check] = &[
     &QUESTION_HEADINGS,
     &VISIBLE_DATE,
     &TABLES_KEPT,
+    &QUOTABLE_SECTIONS,
     &LLMS_TXT,
     &JSON_LD,
+    &DESCRIPTION_LENGTH,
+    &ENTITY_NODE,
+    &WEBSITE_NODE,
+    &CONTACT,
+    &TRUST_LINKS,
+    &LIVE_LINK_HEADER,
 ];

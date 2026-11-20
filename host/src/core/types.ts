@@ -25,7 +25,17 @@ language: string, };
 
 export type IdentityKind = "person" | "organization";
 
-export type Identity = { kind: IdentityKind, name: string, url: string, sameAs: Array<string>, organization?: Organization, };
+export type Identity = { kind: IdentityKind, name: string, url: string, sameAs: Array<string>, organization?: Organization, 
+/**
+ * Absolute URL of the entity's logo (JSON-LD `logo`); absent: no logo
+ * is declared, none is guessed.
+ */
+logo?: string, 
+/**
+ * Public contact address (JSON-LD `email`); absent: no contact is
+ * declared, none is guessed.
+ */
+email?: string, };
 
 export type Organization = { name: string, url: string, };
 

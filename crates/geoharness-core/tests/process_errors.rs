@@ -35,6 +35,29 @@ fn robots_conflict_is_an_error() {
 }
 
 #[test]
+fn a_site_content_signal_that_differs_is_a_headers_conflict() {
+    let mut input = common::input();
+    input.existing.headers = Some("/blog/*\n  Content-Signal: search=no\n".into());
+    assert_eq!(codes(&input), vec!["headers.conflict"]);
+}
+
+#[test]
+fn a_site_content_signal_that_matches_is_written_once() {
+    let mut input = common::input();
+    let ours = geoharness_core::robots::content_signal_value(input.config.content_signal);
+    input.existing.headers = Some(format!("/*\n  Content-Signal: {ours}\n"));
+    let out = process_site(&input).unwrap_or_else(|e| panic!("identical signal is fine: {e:?}"));
+    let headers = &out
+        .files
+        .iter()
+        .find(|f| f.file == "_headers")
+        .unwrap_or_else(|| panic!("no _headers"))
+        .contents;
+    let signals = geoharness_core::headers::values(headers, "content-signal");
+    assert_eq!(signals, vec![("/*", ours.as_str())], "{headers}");
+}
+
+#[test]
 fn more_than_100_header_rules_is_an_error() {
     let mut input = common::input();
     input.existing.headers = Some(

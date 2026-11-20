@@ -35,6 +35,24 @@ describe('sourceDates', () => {
     expect(dates).toEqual({ 'content/index.md': '2026-11-10T07:00:00Z', 'content/blog/**': '2026-11-12T15:30:00Z' });
   });
 
+  it('refuses a shallow clone, whose every source would carry the tip commit\'s date', async () => {
+    const origin = await tempDir('gh-src-origin-');
+    execFileSync('git', ['init', '-q'], { cwd: origin });
+    await mkdir(join(origin, 'site', 'content'), { recursive: true });
+    await writeFile(join(origin, 'site', 'content', 'old.md'), '# Old\n');
+    commitAt(origin, '2026-11-01T00:00:00Z', 'old');
+    await writeFile(join(origin, 'site', 'other.txt'), 'unrelated\n');
+    commitAt(origin, '2026-11-19T00:00:00Z', 'unrelated');
+    const clone = join(await tempDir('gh-src-shallow-'), 'repo');
+    execFileSync('git', ['clone', '-q', '--depth', '1', `file://${origin}`, clone], { stdio: 'ignore' });
+
+    const config = sampleConfig('https://geo.example.com');
+    config.content.sources = { '/': ['content/old.md'] };
+    const io = testIO({ http: noHttp, env: {} });
+    await expect(sourceDates(io, join(clone, 'site'), config)).rejects.toThrow(/shallow.*fetch-depth: 0/s);
+    expect(await sourceDates(io, join(origin, 'site'), config)).toEqual({ 'content/old.md': '2026-11-01T00:00:00Z' });
+  });
+
   it('asks nothing when the config maps no sources', async () => {
     const config = sampleConfig('https://geo.example.com');
     expect(await sourceDates(testIO({ http: noHttp, env: {} }), '/nonexistent', config)).toEqual({});

@@ -590,6 +590,19 @@ function nodeGit(proc) {
       if (r.code !== 0) throw new Error(`git log failed for ${path} (exit ${r.code}): ${r.stderr.trim()}`);
       const date = r.stdout.trim();
       return date === "" ? void 0 : date;
+    },
+    async isShallow(repoDir) {
+      const r = await proc.run("git", ["rev-parse", "--is-shallow-repository"], {
+        cwd: repoDir,
+        env: {},
+        timeoutMs: GIT_TIMEOUT_MS,
+        redact: [],
+        stream: false
+      });
+      if (r.code !== 0) throw new Error(`git rev-parse failed in ${repoDir} (exit ${r.code}): ${r.stderr.trim()}`);
+      const answer = r.stdout.trim();
+      if (answer !== "true" && answer !== "false") throw new Error(`git rev-parse --is-shallow-repository printed "${answer}"`);
+      return answer === "true";
     }
   };
 }
@@ -2539,6 +2552,11 @@ function toUtcSeconds(iso) {
 }
 async function sourceDates(io, siteDir, config) {
   const globs = [...new Set(Object.values(config.content.sources).flat())];
+  if (globs.length > 0 && await io.git.isShallow(siteDir)) {
+    throw new Error(
+      "content.sources needs full git history, but the checkout is shallow: every source would be dated by the shallow tip, not its own last commit. Check out with `fetch-depth: 0` (actions/checkout) or run `git fetch --unshallow`."
+    );
+  }
   const out = {};
   for (const g of globs) {
     const date = await io.git.lastCommitDate(siteDir, `:(glob)${g}`);

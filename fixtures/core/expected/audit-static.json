@@ -1,5 +1,5 @@
 {
-  "score": 93.5,
+  "score": 92.2,
   "categories": [
     {
       "id": "access",
@@ -23,13 +23,13 @@
       "id": "extractability",
       "title": "Extractability (advisory)",
       "weight": 12.0,
-      "score": 53.8
+      "score": 50.0
     },
     {
       "id": "signals",
-      "title": "Optional signals (advisory)",
+      "title": "Signals (advisory)",
       "weight": 8.0,
-      "score": 100.0
+      "score": 88.9
     }
   ],
   "findings": [
@@ -218,6 +218,29 @@
       ]
     },
     {
+      "checkId": "extract.quotable_sections",
+      "title": "Sections are quotable: two or more 10–25-word sentences, or a list",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/",
+      "evidence": "0 of 1 sections quotable; weak: [\"Contact\"]",
+      "citations": [
+        "geo-new"
+      ]
+    },
+    {
+      "checkId": "signals.description_length",
+      "title": "Meta description fits a search snippet (≤160 characters)",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/",
+      "evidence": "37 characters (advisory limit 160)",
+      "citations": [
+        "google-snippet",
+        "geo-new"
+      ]
+    },
+    {
       "checkId": "access.spa_shell",
       "title": "Page has server-rendered text",
       "severity": "blocking",
@@ -377,6 +400,29 @@
       ]
     },
     {
+      "checkId": "extract.quotable_sections",
+      "title": "Sections are quotable: two or more 10–25-word sentences, or a list",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/guide/",
+      "evidence": "0 of 1 sections quotable; weak: [\"Options\"]",
+      "citations": [
+        "geo-new"
+      ]
+    },
+    {
+      "checkId": "signals.description_length",
+      "title": "Meta description fits a search snippet (≤160 characters)",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/",
+      "evidence": "30 characters (advisory limit 160)",
+      "citations": [
+        "google-snippet",
+        "geo-new"
+      ]
+    },
+    {
       "checkId": "access.spa_shell",
       "title": "Page has server-rendered text",
       "severity": "blocking",
@@ -522,6 +568,18 @@
       "citations": [
         "ahrefs-schema-2026",
         "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "signals.description_length",
+      "title": "Meta description fits a search snippet (≤160 characters)",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/guide/advanced/",
+      "evidence": "24 characters (advisory limit 160)",
+      "citations": [
+        "google-snippet",
+        "geo-new"
       ]
     },
     {
@@ -673,6 +731,18 @@
       ]
     },
     {
+      "checkId": "signals.description_length",
+      "title": "Meta description fits a search snippet (≤160 characters)",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/private/",
+      "evidence": "15 characters (advisory limit 160)",
+      "citations": [
+        "google-snippet",
+        "geo-new"
+      ]
+    },
+    {
       "checkId": "access.spa_shell",
       "title": "Page has server-rendered text",
       "severity": "blocking",
@@ -818,6 +888,66 @@
       "citations": [
         "ahrefs-schema-2026",
         "google-ai-guide-2026"
+      ]
+    },
+    {
+      "checkId": "signals.description_length",
+      "title": "Meta description fits a search snippet (≤160 characters)",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/pricing/",
+      "evidence": "16 characters (advisory limit 160)",
+      "citations": [
+        "google-snippet",
+        "geo-new"
+      ]
+    },
+    {
+      "checkId": "signals.entity_node",
+      "title": "Home page JSON-LD has an Organization or Person node with sameAs",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/",
+      "evidence": "no top-level Organization or Person node",
+      "citations": [
+        "google-organization",
+        "ahrefs-schema-2026"
+      ]
+    },
+    {
+      "checkId": "signals.website_node",
+      "title": "Home page JSON-LD has a WebSite node",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/",
+      "evidence": "WebSite node with name and url",
+      "citations": [
+        "google-site-names",
+        "ahrefs-schema-2026"
+      ]
+    },
+    {
+      "checkId": "signals.contact",
+      "title": "Home page declares a contact (JSON-LD email or contactPoint, or a mailto:, tel: or contact link)",
+      "severity": "advisory",
+      "passed": true,
+      "route": "/",
+      "evidence": "contact in JSON-LD: no; contact link: yes",
+      "citations": [
+        "google-organization",
+        "geo-new"
+      ]
+    },
+    {
+      "checkId": "signals.trust_links",
+      "title": "Home page links to an about page, a contact and a privacy policy",
+      "severity": "advisory",
+      "passed": false,
+      "route": "/",
+      "evidence": "no about, no privacy link",
+      "citations": [
+        "google-helpful-content",
+        "geo-new"
       ]
     }
   ]

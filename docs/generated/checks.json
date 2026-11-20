@@ -22,7 +22,7 @@
     },
     {
       "id": "signals",
-      "title": "Optional signals (advisory)",
+      "title": "Signals (advisory)",
       "weight": 8.0
     }
   ],
@@ -223,6 +223,15 @@
       "title": "Tables survive into the twin"
     },
     {
+      "category": "extractability",
+      "citations": [
+        "geo-new"
+      ],
+      "id": "extract.quotable_sections",
+      "severity": "advisory",
+      "title": "Sections are quotable: two or more 10–25-word sentences, or a list"
+    },
+    {
       "category": "signals",
       "citations": [
         "llmstxt-spec",
@@ -242,7 +251,68 @@
       "id": "signals.json_ld",
       "severity": "advisory",
       "title": "JSON-LD is present and valid"
+    },
+    {
+      "category": "signals",
+      "citations": [
+        "google-snippet",
+        "geo-new"
+      ],
+      "id": "signals.description_length",
+      "severity": "advisory",
+      "title": "Meta description fits a search snippet (≤160 characters)"
+    },
+    {
+      "category": "signals",
+      "citations": [
+        "google-organization",
+        "ahrefs-schema-2026"
+      ],
+      "id": "signals.entity_node",
+      "severity": "advisory",
+      "title": "Home page JSON-LD has an Organization or Person node with sameAs"
+    },
+    {
+      "category": "signals",
+      "citations": [
+        "google-site-names",
+        "ahrefs-schema-2026"
+      ],
+      "id": "signals.website_node",
+      "severity": "advisory",
+      "title": "Home page JSON-LD has a WebSite node"
+    },
+    {
+      "category": "signals",
+      "citations": [
+        "google-organization",
+        "geo-new"
+      ],
+      "id": "signals.contact",
+      "severity": "advisory",
+      "title": "Home page declares a contact (JSON-LD email or contactPoint, or a mailto:, tel: or contact link)"
+    },
+    {
+      "category": "signals",
+      "citations": [
+        "google-helpful-content",
+        "geo-new"
+      ],
+      "id": "signals.trust_links",
+      "severity": "advisory",
+      "title": "Home page links to an about page, a contact and a privacy policy"
+    },
+    {
+      "category": "signals",
+      "citations": [
+        "rfc-8288",
+        "llmstxt-spec",
+        "google-canonical-header"
+      ],
+      "id": "signals.live_link_header",
+      "severity": "advisory",
+      "title": "HTTP Link header names the markdown twin (pages) or the canonical page (twins)"
     }
   ],
-  "generatedBy": "cargo run -p xtask -- gen-checks (from crates/geoharness-audit/src/{catalog,weights}.rs)"
+  "generatedBy": "cargo run -p xtask -- gen-checks (from crates/geoharness-audit/src/catalog/ and weights.rs)"
 }

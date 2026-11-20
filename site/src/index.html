@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GeoHarness: agent-ready websites on Cloudflare's free plan</title>
-<meta name="description" content="GeoHarness is a GitHub Action that builds any site, serves markdown twins to AI agents for free on Cloudflare, gates on a GEO score and Lighthouse 100, and verifies it live.">
+<meta name="description" content="A GitHub Action that builds any site, serves markdown twins to AI agents free on Cloudflare, gates on a GEO score and Lighthouse 100, and verifies it live.">
 <link rel="canonical" href="https://geo.avarok.net/">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
@@ -60,7 +60,12 @@
 </ol>
 
 <h2 id="quick-start">Quick start</h2>
-<p>Add <code>geoharness.toml</code> next to your site and this workflow:</p>
+<p>GeoHarness needs one configuration file and one workflow job, and nothing else in your repository has to change. With <code>deploy: false</code> the same pipeline builds, audits and scores the site without a single Cloudflare call.</p>
+<ol class="steps">
+<li>Add the workflow below and the secrets <code>CLOUDFLARE_API_TOKEN</code> and <code>CLOUDFLARE_ACCOUNT_ID</code>.</li>
+<li>Add <code>geoharness.toml</code> next to your site, like the one after the workflow.</li>
+<li>Push to <code>main</code>: the action builds, audits, deploys and verifies the live site.</li>
+</ol>
 <pre><code>name: deploy
 on:
   push:
@@ -109,7 +114,8 @@ sections = []</code></pre>
 </div></main>
 <!-- generated:footer -->
 <footer class="site"><div class="wrap">
-<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net">Avarok Cybersecurity</a>.</p>
+<p>GeoHarness is open source (Apache-2.0 OR MIT) by <a href="https://avarok.net/about/">Avarok Cybersecurity</a>.
+ <a href="mailto:contact@avarok.net">Contact</a> · <a href="https://avarok.net/privacy/">Privacy notice</a> · <a href="https://github.com/Avarok-Cybersecurity/geoharness/security/policy">Security policy</a></p>
 <p>This site is built, audited and deployed by GeoHarness itself. Agents: send <code>Accept: text/markdown</code>, or read <a href="/llms.txt">llms.txt</a>.</p>
 </div></footer>
 <!-- /generated:footer -->

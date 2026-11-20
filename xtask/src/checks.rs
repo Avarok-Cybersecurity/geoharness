@@ -24,7 +24,7 @@ pub fn render() -> String {
         })
         .collect();
     let doc = json!({
-        "generatedBy": "cargo run -p xtask -- gen-checks (from crates/geoharness-audit/src/{catalog,weights}.rs)",
+        "generatedBy": "cargo run -p xtask -- gen-checks (from crates/geoharness-audit/src/catalog/ and weights.rs)",
         "categories": categories,
         "checks": checks,
     });

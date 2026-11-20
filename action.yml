@@ -16,7 +16,7 @@ inputs:
     description: Cloudflare account ID (32 hex characters). Required when deploy is true.
     required: false
   site-path:
-    description: Directory of the site inside the repository; it must contain geoharness.toml.
+    description: Directory of the site inside the repository; it must contain geoharness.toml. With content.sources set, check the repository out with fetch-depth 0 (a shallow clone is refused).
     required: true
   adapter:
     description: "Build adapter: auto (detect), static, command, npm, sveltekit-static, python, make, vite-prerender, worker-assets."

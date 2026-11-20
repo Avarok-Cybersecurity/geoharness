@@ -17,6 +17,8 @@ pub struct Processed {
     pub twin: String,
     pub summary: PageSummary,
     pub noindex: bool,
+    /// The canonical the page declares, else `origin + route`.
+    pub canonical: String,
 }
 
 fn collapse(s: &str) -> String {
@@ -44,6 +46,7 @@ pub fn process(
     let generated_ld = page_json_ld(
         config,
         &PageMeta {
+            route: &page.route,
             title: title.as_deref(),
             description: description.as_deref(),
             canonical: &canonical,
@@ -111,6 +114,7 @@ pub fn process(
         html: inject(&page.html, &tags)?,
         twin,
         noindex: facts.noindex,
+        canonical: canonical.clone(),
         summary: PageSummary {
             route: page.route.clone(),
             markdown_file,

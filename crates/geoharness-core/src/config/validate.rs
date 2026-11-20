@@ -65,6 +65,18 @@ fn identity(c: &SiteConfig, r: &mut Report) {
             format!("{u:?} must be an absolute http(s) URL")
         });
     }
+    if let Some(logo) = &id.logo {
+        r.check(
+            logo.starts_with("https://") && is_url(logo),
+            "identity.logo",
+            || format!("{logo:?} must be an absolute https URL"),
+        );
+    }
+    if let Some(email) = &id.email {
+        r.check(is_email(email), "identity.email", || {
+            format!("{email:?} must be a single address like name@example.com")
+        });
+    }
     if let Some(org) = &id.organization {
         r.check(single_line(&org.name), "identity.organization.name", || {
             "must be a non-empty single line".to_owned()
@@ -192,6 +204,19 @@ fn is_url(s: &str) -> bool {
         .strip_prefix("https://")
         .or_else(|| s.strip_prefix("http://"));
     rest.is_some_and(|r| !r.is_empty() && !r.starts_with('/')) && single_line(s) && !s.contains(' ')
+}
+
+/// One plain address: `local@domain.tld`, no spaces, quotes or angle brackets.
+fn is_email(s: &str) -> bool {
+    let Some((local, domain)) = s.split_once('@') else {
+        return false;
+    };
+    let plain = |p: &str| !p.is_empty() && !p.contains(['@', ' ', '"', '<', '>', ',', ';']);
+    single_line(s)
+        && plain(local)
+        && plain(domain)
+        && domain.contains('.')
+        && !domain.starts_with('.')
 }
 
 /// Matches identifiers declared in `env`.

@@ -72,15 +72,27 @@ pub fn observe(requests: Vec<LiveRequest>) -> Vec<LiveObservation> {
             } else {
                 format!("{ct}; charset=utf-8")
             };
+            let link = match r.expect.content_type.as_deref() {
+                Some("text/html") => Some(format!(
+                    "<{}index.md>; rel=\"alternate\"; type=\"text/markdown\"",
+                    r.url
+                )),
+                Some("text/markdown") => Some(format!("<{}>; rel=\"canonical\"", r.url)),
+                _ => None,
+            };
+            let mut headers = BTreeMap::from([
+                ("Content-Type".into(), ct),
+                ("Vary".into(), "Accept-Encoding, Accept".into()),
+            ]);
+            if let Some(link) = link {
+                headers.insert("Link".into(), link);
+            }
             LiveObservation {
                 url: r.url,
                 user_agent: r.user_agent,
                 accept: r.accept,
                 status: r.expect.status,
-                headers: BTreeMap::from([
-                    ("Content-Type".into(), ct),
-                    ("Vary".into(), "Accept-Encoding, Accept".into()),
-                ]),
+                headers,
                 body_prefix: r.expect.body_includes.unwrap_or_default(),
                 body_suffix: "</body></html>".into(),
             }

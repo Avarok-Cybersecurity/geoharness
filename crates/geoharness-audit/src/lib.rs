@@ -41,11 +41,15 @@ pub fn audit(input: &AuditInput) -> Result<AuditReport, Vec<CoreError>> {
         scored.push(checks::index::broken_links(p, &config.site.origin, &routes));
         scored.push(checks::index::twin(p, selector));
         scored.extend(checks::advisory::page(p, selector, &entities));
+        scored.extend(checks::content::quotable_sections(p, selector));
+        scored.extend(checks::content::description_length(p));
     }
+    scored.extend(checks::entity::site(&pages));
     if let Some(live) = &input.live {
         let target = LiveTarget::from_config(config, Some(&input.build_id))?;
         let routes: Vec<String> = input.pages.iter().map(|p| p.route.clone()).collect();
         scored.extend(checks::live::checks(&target, &routes, live));
+        scored.extend(checks::live::link_headers(&target, &routes, live));
         scored.push(checks::csp::live_beacon(config, live));
     }
     Ok(score::report(scored))
@@ -56,9 +60,11 @@ pub fn audit(input: &AuditInput) -> Result<AuditReport, Vec<CoreError>> {
 /// llms.txt need only have an H1.
 pub fn audit_live(input: &LiveAuditInput) -> Result<AuditReport, Vec<CoreError>> {
     let target = LiveTarget::from_origin(&input.origin, input.build_id.as_deref())?;
-    Ok(score::report(checks::live::checks(
+    let mut scored = checks::live::checks(&target, &input.routes, &input.live);
+    scored.extend(checks::live::link_headers(
         &target,
         &input.routes,
         &input.live,
-    )))
+    ));
+    Ok(score::report(scored))
 }

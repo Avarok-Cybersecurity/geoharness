@@ -6,6 +6,7 @@ pub mod extract;
 pub mod inject;
 pub mod labels;
 pub mod markdown;
+pub mod sections;
 pub mod text;
 
 pub use extract::{HeadFacts, MainContent, Page};

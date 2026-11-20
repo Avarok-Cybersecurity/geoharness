@@ -83,6 +83,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # lastmod is a git date; a shallow clone (the default depth 1) would date every page by the tip commit,
+          # so GeoHarness refuses one when content.sources is set.
+          fetch-depth: 0
       - uses: Avarok-Cybersecurity/geoharness@v1
         with:
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -130,7 +134,7 @@ Composite actions do not enforce `required`, so GeoHarness validates every input
 |---|---|---|---|
 | `cloudflare-api-token` | no | — | Cloudflare API token. Permission groups per feature are listed in cloudflare-permissions.json. Required when deploy is true. |
 | `cloudflare-account-id` | no | — | Cloudflare account ID (32 hex characters). Required when deploy is true. |
-| `site-path` | yes | — | Directory of the site inside the repository; it must contain geoharness.toml. |
+| `site-path` | yes | — | Directory of the site inside the repository; it must contain geoharness.toml. With content.sources set, check the repository out with fetch-depth 0 (a shallow clone is refused). |
 | `adapter` | no | `auto` | Build adapter: auto (detect), static, command, npm, sveltekit-static, python, make, vite-prerender, worker-assets. |
 | `build-command` | no | — | Build command, run without a shell (quotes group words; pipes, redirects, ; & $ are rejected — use a script). |
 | `output-dir` | no | — | Build output directory relative to site-path. Required by static, command, python and make. |
@@ -238,7 +242,7 @@ The move, without downtime, per host and back to back (proven on thomaspbraun.co
 
 ## GEO score
 
-80 of 100 points sit on access, indexability and markdown delivery, backed by grade A platform documentation; those checks are **blocking**. The other 20 points are advisory heuristics from grade B/C measurements, because the research does not show content tactics move citations reliably. Methodology: [geo.avarok.net/docs/geo-score/](https://geo.avarok.net/docs/geo-score/).
+80 of 100 points sit on access, indexability and markdown delivery, backed by grade A platform documentation; those checks are **blocking**. The other 20 points are advisory: heuristics from grade B/C/D measurements and prior art, and grade A documentation with no measured AI-citation effect (entity JSON-LD, contact and trust links, `Link` headers), because the research does not show content tactics move citations reliably. They lower the score when missing and never block. How each [geo.new](https://geo.new/) check maps onto this list: [docs/geo-new-parity.md](docs/geo-new-parity.md). Methodology: [geo.avarok.net/docs/geo-score/](https://geo.avarok.net/docs/geo-score/).
 
 <!-- generated:geo-score -->
 | Category | Id | Weight |
@@ -247,7 +251,7 @@ The move, without downtime, per host and back to back (proven on thomaspbraun.co
 | Indexability | `indexability` | 25 |
 | Markdown delivery | `delivery` | 25 |
 | Extractability (advisory) | `extractability` | 12 |
-| Optional signals (advisory) | `signals` | 8 |
+| Signals (advisory) | `signals` | 8 |
 
 | Check | What it verifies | Category | Severity | Evidence grade | Citations |
 |---|---|---|---|---|---|
@@ -271,8 +275,15 @@ The move, without downtime, per host and back to back (proven on thomaspbraun.co
 | `extract.question_headings` | A heading is phrased as a question | extractability | advisory | A, B (preprint) | [what-gets-cited-2026](#citations), [sageo-2026](#citations) |
 | `extract.visible_date` | A date is visible in the content | extractability | advisory | B (preprint) | [what-gets-cited-2026](#citations) |
 | `extract.tables_kept` | Tables survive into the twin | extractability | advisory | A | [htmlrag-2025](#citations) |
+| `extract.quotable_sections` | Sections are quotable: two or more 10–25-word sentences, or a list | extractability | advisory | D | [geo-new](#citations) |
 | `signals.llms_txt` | llms.txt is present and well-formed | signals | advisory | A (spec), B | [llmstxt-spec](#citations), [ahrefs-llmstxt-2026](#citations), [seranking-llmstxt-2026](#citations) |
 | `signals.json_ld` | JSON-LD is present and valid | signals | advisory | A, B | [ahrefs-schema-2026](#citations), [google-ai-guide-2026](#citations) |
+| `signals.description_length` | Meta description fits a search snippet (≤160 characters) | signals | advisory | A, D | [google-snippet](#citations), [geo-new](#citations) |
+| `signals.entity_node` | Home page JSON-LD has an Organization or Person node with sameAs | signals | advisory | A, B | [google-organization](#citations), [ahrefs-schema-2026](#citations) |
+| `signals.website_node` | Home page JSON-LD has a WebSite node | signals | advisory | A, B | [google-site-names](#citations), [ahrefs-schema-2026](#citations) |
+| `signals.contact` | Home page declares a contact (JSON-LD email or contactPoint, or a mailto:, tel: or contact link) | signals | advisory | A, D | [google-organization](#citations), [geo-new](#citations) |
+| `signals.trust_links` | Home page links to an about page, a contact and a privacy policy | signals | advisory | A, D | [google-helpful-content](#citations), [geo-new](#citations) |
+| `signals.live_link_header` | HTTP Link header names the markdown twin (pages) or the canonical page (twins) | signals | advisory | A, A (spec) | [rfc-8288](#citations), [llmstxt-spec](#citations), [google-canonical-header](#citations) |
 <!-- /generated:geo-score -->
 
 ## Lighthouse gate
@@ -369,13 +380,20 @@ Accessed dates are when the source was read for GeoHarness.
 |---|---|---|---|
 | google-ai-guide-2026 | Google Search Central, "AI features and your website" optimization guide, May 2026. https://developers.google.com/search/docs/fundamentals/ai-optimization-guide (accessed 2026-11-19) | A | Generative features rest on core Search eligibility; markdown/AI text files are neither required nor used by Google Search. |
 | google-spam-policies | Google Search Central, "Spam policies: cloaking". https://developers.google.com/search/docs/essentials/spam-policies (accessed 2026-11-19) | A | Why GeoHarness negotiates on `Accept`, never on search-crawler user agents, and checks markdown/HTML equivalence. |
+| google-snippet | Google Search Central, "Control your snippets in search results". https://developers.google.com/search/docs/appearance/snippet (accessed 2026-11-19) | A | There is no limit on a meta description's length; snippets are truncated as needed, typically to fit the device width. Why `signals.description_length` is advisory. |
+| google-organization | Google Search Central, "Organization (`Organization`) structured data". https://developers.google.com/search/docs/appearance/structured-data/organization (accessed 2026-11-19) | A | Organization markup belongs on the home page or a single page about the organization; no required properties; recommended `name`, `url`, `logo`, `sameAs`, `email`, `contactPoint`. Basis for the generated entity node and `signals.entity_node`/`signals.contact`. |
+| google-site-names | Google Search Central, "Provide a site name to Google Search". https://developers.google.com/search/docs/appearance/site-names (accessed 2026-11-19) | A | `WebSite` structured data must be on the home page (the domain or subdomain root), with `name` and `url`; it is not needed on every page, and a second `WebSite` block on the home page should be avoided. Why the full `WebSite` node is generated on `/` only. |
+| google-helpful-content | Google Search Central, "Creating helpful, reliable, people-first content". https://developers.google.com/search/docs/fundamentals/creating-helpful-content (accessed 2026-11-19) | A | A self-assessment, not a ranking rule: it asks whether content gives "background about the author or the site that publishes it, such as through links to an author page or a site's About page". Basis for `signals.trust_links` (advisory). |
+| google-canonical-header | Google Search Central, "How to specify a canonical URL with rel="canonical" and other methods". https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls (accessed 2026-11-19) | A | Google Search supports a `Link: <url>; rel="canonical"` HTTP header, including for non-HTML documents, with absolute URLs; use the header or the HTML element, not both. Why twins (markdown, no `<head>`) carry the header and HTML pages do not. |
+| google-faq-2023 | Google Search Central Blog, "Changes to HowTo and FAQ rich results", August 2023. https://developers.google.com/search/blog/2023/08/howto-faq-changes (accessed 2026-11-19) | A | FAQ rich results are shown only for well-known government and health sites; unused structured data causes no problems. Why GeoHarness does not require `FAQPage` markup. |
+| rfc-8288 | Nottingham, "Web Linking", RFC 8288, IETF, 2017. https://www.rfc-editor.org/rfc/rfc8288.html (accessed 2026-11-19) | A (spec) | The `Link` header syntax: comma-separated link-values, each `<URI>` with `;` parameters; the `type` hint; equivalence of one combined header and several. Basis for the generated `Link` headers and their live parser. |
 | llmstxt-spec | llms.txt proposal. https://llmstxt.org/ (accessed 2026-11-19) | A (spec) | llms.txt format; per-page `.md` convention; `rel="alternate" type="text/markdown"`. |
 | cf-content-signals | Cloudflare, "Content Signals Policy". https://blog.cloudflare.com/content-signals-policy/ (accessed 2026-11-19) | A (spec) | `Content-Signal: search, ai-input, ai-train` in robots.txt and headers. |
 | cf-markdown-for-agents | Cloudflare docs, "Markdown for Agents". https://developers.cloudflare.com/fundamentals/reference/markdown-for-agents/ (accessed 2026-11-19) | A | Plan availability (Pro+), headers (`Vary: Accept`, Content-Signal), 6 MiB limit; GeoHarness reproduces this for free. |
 | cf-transform-rules | Cloudflare docs, Transform Rules availability and URL Rewrite parameters. https://developers.cloudflare.com/rules/transform/ and https://developers.cloudflare.com/rules/transform/url-rewrite/reference/parameters/ (accessed 2026-11-19) | A | 10 free rules, `concat` and `wildcard_replace` on all plans, no regex on Free. |
 | cf-rules-functions | Cloudflare docs, Rules language functions and header fields. https://developers.cloudflare.com/ruleset-engine/rules-language/functions/ (accessed 2026-11-19) | A | Matching `http.request.headers["accept"]`. |
 | cf-phases | Cloudflare docs, Ruleset Engine phases list. https://developers.cloudflare.com/ruleset-engine/reference/phases-list/ (accessed 2026-11-19) | A | Transform runs before cache. |
-| cf-workers-static-assets | Cloudflare docs, Workers static assets billing, routing, headers. https://developers.cloudflare.com/workers/static-assets/ (accessed 2026-11-19) | A | Free unlimited asset requests, `run_worker_first`, `_headers` (100 rules). |
+| cf-workers-static-assets | Cloudflare docs, Workers static assets billing, routing, headers. https://developers.cloudflare.com/workers/static-assets/ and https://developers.cloudflare.com/workers/static-assets/headers/ (accessed 2026-11-19) | A | Free unlimited asset requests, `run_worker_first`, `_headers` (100 rules, 2,000 characters a line; one splat per pattern, referenced as `:splat` in header values; a request inherits the headers of every matching rule, a header set twice is joined with a comma, and `! Name` removes what earlier rules added). |
 | cf-workers-limits | Cloudflare docs, Workers platform limits. https://developers.cloudflare.com/workers/platform/limits/ (accessed 2026-11-19) | A | 100k requests/day, 10 ms CPU, 128 MB memory on Free. |
 | cf-pages-limits | Cloudflare docs, Pages limits and Functions pricing. https://developers.cloudflare.com/pages/platform/limits/ (accessed 2026-11-19) | A | Pages Functions share the Workers quota; fail-open option. |
 | cf-workers-ai | Cloudflare docs, Workers AI pricing and OpenAI-compatible embeddings. https://developers.cloudflare.com/workers-ai/ (accessed 2026-11-19) | A | 10k free neurons/day; embedding models and dimensions. |
@@ -400,7 +418,7 @@ Accessed dates are when the source was read for GeoHarness.
 | ID | Source | Grade | Supports |
 |---|---|---|---|
 | markdown-new | markdown.new. https://markdown.new/ (accessed 2026-11-19) | D | Prior art: three-tier HTML-to-markdown conversion, `x-markdown-tokens`, `vary: accept`. |
-| geo-new | GEO.new. https://geo.new/ (accessed 2026-11-19) | D | Prior art: category weights for a GEO audit (AI Citability 22%, Content/E-E-A-T 22%, Brand/Entity 20%, AI Access 15%, Schema 13%, Platform 8%). |
+| geo-new | GEO.new, https://geo.new/, and its audit of https://geo.avarok.net/ (rules `geo-new-rules-v23`, audit `aud_27a112f1949c50fa71b7a1f003c70522`). (accessed 2026-11-19) | D | Prior art: category weights for a GEO audit (AI Citability 22%, Content/E-E-A-T 22%, Brand/Entity 20%, AI Access 15%, Schema 13%, Platform 8%) and the check list mapped in `docs/geo-new-parity.md`. Its CIT-02 rule (a quotable section has two or more sentences of 10–25 words, or a list), its CORE-04 warning on a 173-character description (threshold not published) and its A02 count of HTTP `Link` declarations are the basis of three advisory checks. No published validation of any threshold. |
 | lighthouse-ci | Google, Lighthouse CI. https://github.com/GoogleChrome/lighthouse-ci (accessed 2026-11-19) | A | The Lighthouse gate. |
 | htmd | htmd crate. https://crates.io/crates/htmd (accessed 2026-11-19) | A | HTML-to-markdown engine. |
 | lol-html | Cloudflare lol_html. https://github.com/cloudflare/lol-html (accessed 2026-11-19) | A | Streaming head injection and link rewriting. |

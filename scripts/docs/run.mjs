@@ -1,10 +1,11 @@
 // npm run docs: regenerates every generated section of README.md and the site sources
-// (site/src/**/*.html, site/src/_headers). `--check` (CI) writes nothing and fails when any differs.
+// (site/src/**/*.html, site/src/_headers), and docs/geo-new-parity.md. `--check` (CI) writes nothing and fails when any differs.
 // Markers: <!-- generated:NAME --> … <!-- /generated:NAME --> (README.md and HTML pages).
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ADAPTERS } from './adapters.mjs';
 import { footer, header, siteStyle } from './layout.mjs';
+import { parityDoc } from './parity.mjs';
 import { readmeSections, siteSections } from './sections.mjs';
 import { ROOT } from './sources.mjs';
 
@@ -67,6 +68,7 @@ function plan() {
   const site = { ...siteSections(), style: style.block, header: header(), footer: footer() };
   for (const f of htmlFiles(SITE_SRC)) files.set(f, replaceSections(readFileSync(f, 'utf8'), site, relative(ROOT, f)));
   files.set(join(SITE_SRC, '_headers'), headersFile(style.hash));
+  files.set(join(ROOT, 'docs', 'geo-new-parity.md'), parityDoc());
   return files;
 }
 

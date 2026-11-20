@@ -12,7 +12,7 @@
     "markdownFile": "guide/index.md",
     "title": "Guide | Example Docs",
     "description": "Install and configure Example.",
-    "tokens": 196,
+    "tokens": 272,
     "lastmod": "2026-11-01T12:00:00Z"
   },
   {
@@ -20,7 +20,7 @@
     "markdownFile": "guide/advanced/index.md",
     "title": "Advanced | Example Docs",
     "description": "Advanced use of Example.",
-    "tokens": 210,
+    "tokens": 287,
     "lastmod": "2026-11-12T10:00:00Z"
   },
   {
@@ -28,14 +28,14 @@
     "markdownFile": "private/index.md",
     "title": "Private | Example Docs",
     "description": "Internal notes.",
-    "tokens": 179
+    "tokens": 253
   },
   {
     "route": "/pricing/",
     "markdownFile": "pricing/index.md",
     "title": "Pricing | Example Docs",
     "description": "Example is free.",
-    "tokens": 194,
+    "tokens": 269,
     "lastmod": "2026-10-05T08:30:00Z"
   }
 ]
