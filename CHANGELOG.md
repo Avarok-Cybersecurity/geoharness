@@ -23,6 +23,10 @@ All notable changes to GeoHarness are documented here. The format follows
 
 ### Changed
 
+- `extra-optimizations` is required and has no default (it was `all`). Its settings are zone-wide — Bot Fight Mode,
+  AI-bot blocking, email obfuscation and Rocket Loader change for every host on the zone, APIs included — so a site
+  that left the input out silently changed its neighbours. Workflows that omit it now fail at input validation.
+
 - The advisory category `signals` is titled "Signals (advisory)"; scores of sites without entity JSON-LD, contact
   and trust links or `Link` headers drop accordingly (geo.avarok.net: see the pull request).
 

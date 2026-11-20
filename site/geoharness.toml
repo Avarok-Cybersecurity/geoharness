@@ -7,7 +7,7 @@ language = "en"
 
 [identity]
 kind = "organization"
-name = "Avarok Cybersecurity"
+name = "Avarok"
 url = "https://avarok.net"
 # The same profiles, logo and address avarok.net declares for itself, so both sites name one entity.
 sameAs = ["https://github.com/Avarok-Cybersecurity", "https://blog.avarok.net/", "https://www.linkedin.com/company/avarok/"]

@@ -52,9 +52,9 @@ inputs:
     description: >-
       Free zone optimizations, as tokens applied left to right: all, none, <id>, -<id>. Ids: email_obfuscation,
       rocket_loader, early_hints, http3, brotli, smart_tiered_cache, zstd, bot_fight_mode, ai_bots_protection.
-      Example: "all -rocket_loader".
-    required: false
-    default: all
+      Example: "all -rocket_loader". Zone-wide: they apply to every host on the zone, not only this site, so each
+      site states its choice; there is no default.
+    required: true
   deploy:
     description: "true deploys, configures the zone, verifies live and pings IndexNow. false is a dry run for pull requests: build, process, GEO audit and Lighthouse only, with no Cloudflare API call."
     required: false
